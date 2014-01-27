@@ -47,7 +47,7 @@ def eval_ast(tree, globals_=None):
 
 
 def ast_equal(tree1, tree2):
-    ''' Returns whether AST tree1 is equal to tree2 
+    ''' Returns whether AST tree1 is equal to tree2
     '''
     return ast.dump(tree1) == ast.dump(tree2)
 
@@ -66,7 +66,7 @@ def ast_to_string(tree):
 
 class BaseTestCase(unittest.TestCase):
     def assertASTEqual(self, test_ast, expected_ast, print_ast=False):
-        ''' Check that test_ast is equal to expected_ast, 
+        ''' Check that test_ast is equal to expected_ast,
         printing helpful error message if they are not equal
         '''
         dump1, dump2 = ast.dump(test_ast), ast.dump(expected_ast)
@@ -112,7 +112,7 @@ class LocalsVisitor(ast.NodeVisitor):
     def __init__(self):
         self._locals = set()
         super(LocalsVisitor, self).__init__()
-    
+
     def visit_Name(self, node):
         self.generic_visit(node)
         if isinstance(node.ctx, ast.Store) or isinstance(node.ctx, ast.Param):

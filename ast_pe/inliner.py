@@ -17,7 +17,7 @@ class Inliner(ast.NodeTransformer):
 
     def get_var_count(self):
         return self._var_count
-    
+
     def get_bindings(self):
         return self._mangled
 

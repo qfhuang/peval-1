@@ -90,7 +90,7 @@ class TestIf(BaseOptimizerTestCase):
             ''',
             dict(x=2),
             'do_stuff()')
-    
+
     def test_if_no_elimination(self):
         ''' Test that there is no unneeded elimination of if test
         '''
@@ -111,7 +111,7 @@ class TestIf(BaseOptimizerTestCase):
     def test_if_false_elimination(self):
         ''' Eliminate if test, when test is false
         '''
-        class Falsy(object): 
+        class Falsy(object):
             def __nonzero__(self):
                 return False
         false_values = [0, '', [], {}, set(), False, None, Falsy()]
@@ -141,13 +141,13 @@ class TestIf(BaseOptimizerTestCase):
                     pass
                 else:
                     do_stuff()
-                ''', 
+                ''',
                 dict(x=object()),
                 'pass')
-        
+
     def test_if_visit_only_true_branch(self):
         global_state = dict(cnt=0)
-        
+
         @pure_function
         def inc():
             global_state['cnt'] += 1
@@ -157,13 +157,13 @@ class TestIf(BaseOptimizerTestCase):
         self.assertEqual(global_state['cnt'], 0)
 
         self._test_opt('''
-                if a: 
+                if a:
                     dec()
                 else:
                     inc()
                 ''', dict(a=False, inc=inc), 'True')
         self.assertEqual(global_state['cnt'], 1)
-    
+
     def test_visit_all_branches(self):
         self._test_opt('''
                 if x > 0:
@@ -204,13 +204,13 @@ class TestFnEvaluation(BaseOptimizerTestCase):
 
     def test_call_with_starargs(self):
         pass # TODO
-    
+
     def test_call_with_kwargs(self):
         pass #TODO
 
     def test_exception(self):
-        ''' Test when called function raises an exception - 
-        we want it to raise it in specialized function 
+        ''' Test when called function raises an exception -
+        we want it to raise it in specialized function
         '''
         @pure_function
         def fn():
@@ -280,7 +280,7 @@ class TestBoolOp(BaseOptimizerTestCase):
 
         self._test_opt('a or inc()', dict(a=False, inc=inc), 'True')
         self.assertEqual(global_state['cnt'], 1)
-    
+
     def test_mix(self):
         self._test_opt(
                 '''
@@ -302,7 +302,7 @@ class Testcompare(BaseOptimizerTestCase):
         self._test_opt('a == b', dict(a=1, b=1), 'True')
         self._test_opt('a == b', dict(a=2, b=1), 'False')
         self._test_opt(
-                'a == b == c == d', dict(a=2, c=2), 
+                'a == b == c == d', dict(a=2, c=2),
                 '2 == b == 2 == d')
 
     def test_mix(self):
@@ -438,7 +438,7 @@ class TestSimpleMutation(BaseOptimizerTestCase):
                     bar()
                 ''',
                 dict(x=object()))
-    
+
     def test_mutation_of_fn_args(self):
         self._test_opt(
                 '''
@@ -503,7 +503,7 @@ class TestInlining(BaseOptimizerTestCase):
                     if a:
                         b = a * 10
                     __ast_pe_var_2 = []
-                    for __ast_pe_var_3 in xrange(x):    
+                    for __ast_pe_var_3 in xrange(x):
                         __ast_pe_var_2.append(x.do_stuff())
                     a = (b + __ast_pe_var_2)
                     return a
@@ -575,7 +575,7 @@ class TestRecursionInlining(BaseOptimizerTestCase):
                 ''')
 
     def test_inlining_1(self):
-        @inline 
+        @inline
         def power(x, n):
             if n == 0:
                 return 1

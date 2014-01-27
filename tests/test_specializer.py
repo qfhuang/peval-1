@@ -45,7 +45,7 @@ class TestSpecializer(BaseTestCase):
             for x in [0, 1, 0.01, 5e10]:
                 self._test_partial_fn(stupid_power, globals(), locals(),
                         lambda : dict(n=n), lambda : {'x': x })
-    
+
     def test_if_on_recursive_power(self):
         @inline
         def power(x, n):
@@ -88,7 +88,7 @@ class TestSpecializer(BaseTestCase):
         ''' Check that functions are the same, or raise the same exception
         '''
         v1 = v2 = e1 = e2 = None
-        try: 
+        try:
             v1 = fn1(*args, **kwargs)
         except Exception as e1:
             pass

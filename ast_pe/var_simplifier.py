@@ -6,7 +6,6 @@ from ast_pe.symbol_visitor import get_symbols
 from ast_pe.utils import ast_to_string
 
 
-
 def remove_assignments(node_list):
     ''' Remove one assigment at a time, touching only top level block (???)
     '''
@@ -52,7 +51,7 @@ def _can_remove_assignment(assign_node, node_list):
                     test=ast.Name(id='True', ctx=ast.Load()),
                     body=node_list[:idx] + node_list[idx+1:],
                     orelse=[])
-            if all(n != assigned_name 
+            if all(n != assigned_name
                     for n in get_symbols(dummy_node, (ast.Store, ))):
                 return True, assigned_name, value_node
     return False, None, None
@@ -72,4 +71,4 @@ class Replacer(ast.NodeTransformer):
             return self.value_node
         else:
             return node
-        
+

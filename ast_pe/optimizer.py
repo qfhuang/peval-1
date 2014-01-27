@@ -65,7 +65,7 @@ class Optimizer(ast.NodeTransformer):
             )
 
     def __init__(self, constants):
-        ''' 
+        '''
         :constants: a dict names-> values of variables known at compile time
         '''
         self._constants = dict(constants)
@@ -75,9 +75,9 @@ class Optimizer(ast.NodeTransformer):
         self._current_block = None # None, or a list of nodes that correspond
         # to currently visited code block
         super(Optimizer, self).__init__()
-    
+
     def get_bindings(self):
-        ''' Return a dict, populated with newly bound variables 
+        ''' Return a dict, populated with newly bound variables
         (results of calculations done at compile time), and survived
         initial constants.
         '''
@@ -92,15 +92,15 @@ class Optimizer(ast.NodeTransformer):
         prefix = '--' * self._depth
         logger.debug('%s visit:\n%s', prefix, ast_to_string(node))
         self._depth += 1
-        # copy-paste from ast.py, added self._current_block handling 
+        # copy-paste from ast.py, added self._current_block handling
         block_fields = ['body', 'orelse'] # TODO more?
         for field, old_value in ast.iter_fields(node):
             old_value = getattr(node, field, None)
             if isinstance(old_value, list):
                 new_values = []
                 if field in block_fields:
-                    parent_block = self._current_block 
-                    self._current_block = new_values 
+                    parent_block = self._current_block
+                    self._current_block = new_values
                 try:
                     for value in old_value:
                         if isinstance(value, ast.AST):
@@ -125,7 +125,7 @@ class Optimizer(ast.NodeTransformer):
         self._depth -= 1
         logger.debug('%s result:\n%s', prefix, ast_to_string(node))
         return node
-    
+
     def visit_FunctionDef(self, node):
         ''' Dead code elimination
         '''
@@ -198,7 +198,7 @@ class Optimizer(ast.NodeTransformer):
                     # and dataflow analysis, but maybe there are other cases?
                     pass
         return node
-    
+
     def visit_UnaryOp(self, node):
         ''' Hanle "not" - evaluate if possible
         '''
@@ -233,7 +233,7 @@ class Optimizer(ast.NodeTransformer):
         else:
             node.values = new_value_nodes
             return node
-    
+
     def visit_Compare(self, node):
         ''' ==, >, etc. - evaluate only if all are know
         '''
@@ -253,14 +253,14 @@ class Optimizer(ast.NodeTransformer):
                     ast.Eq: lambda : a == b,
                     ast.Lt: lambda : a < b,
                     ast.Gt: lambda : a > b,
-                    ast.GtE: lambda : a >= b, 
-                    ast.LtE: lambda : a <= b, 
+                    ast.GtE: lambda : a >= b,
+                    ast.LtE: lambda : a <= b,
                     ast.NotEq: lambda : a != b,
                     }[type(op)]()
             if not result:
                 return self._new_binding_node(False)
         return self._new_binding_node(True)
-    
+
     def visit_BinOp(self, node):
         ''' Binary arithmetic - + * / etc.
         Evaluate if everything is known.
@@ -348,7 +348,7 @@ class Optimizer(ast.NodeTransformer):
             return node
         else:
             return self._new_binding_node(fn_value)
-    
+
     def _inlined_fn(self, node):
         ''' Return a list of nodes, representing inlined function call,
         and a node, repesenting the variable that stores result.
@@ -390,7 +390,7 @@ class Optimizer(ast.NodeTransformer):
                         body=[
                             ast.Assign(
                                 targets=[ast.Name(id=while_var, ctx=ast.Store())],
-                                value=self._get_literal_node(False))] + 
+                                value=self._get_literal_node(False))] +
                             inlined_code,
                         orelse=[])
                     ])
@@ -400,7 +400,7 @@ class Optimizer(ast.NodeTransformer):
         remove_assignments(all_nodes)
 
         return all_nodes[:-1], all_nodes[-1]
-                
+
 
     def _is_pure_fn(self, fn):
         ''' fn has no side effects, and its value is determined only by
@@ -414,7 +414,7 @@ class Optimizer(ast.NodeTransformer):
                 return True
             # TODO - or analyze fn body
             return False
-    
+
     def _is_inlined_fn(self, fn):
         ''' fn should be inlined
         '''
@@ -439,7 +439,7 @@ class Optimizer(ast.NodeTransformer):
         return False, None
 
     def _get_literal_node(self, value):
-        ''' If value can be represented as literal value, 
+        ''' If value can be represented as literal value,
         return AST node for it. Literals are never mutable!
         '''
         if type(value) in self.NUMBER_TYPES:
@@ -448,7 +448,7 @@ class Optimizer(ast.NodeTransformer):
             return ast.Str(value)
         elif value is False or value is True:
             return ast.Name(id='True' if value else 'False', ctx=ast.Load())
-    
+
     def _new_binding_node(self, value):
         ''' Generate unique variable name, add it to constants with given value,
         and return the node that loads generated variable.
@@ -462,7 +462,7 @@ class Optimizer(ast.NodeTransformer):
             return ast.Name(id=var_name, ctx=ast.Load())
 
     def _mark_mutated_node(self, node):
-        ''' Mark that node holding some variable can be mutated, 
+        ''' Mark that node holding some variable can be mutated,
         and propagate this information up the dataflow graph
         '''
         assert is_load_name(node)

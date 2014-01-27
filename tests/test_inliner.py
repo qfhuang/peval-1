@@ -19,11 +19,11 @@ class TestInliner(BaseTestCase):
         ast_tree = ast.parse(shift_source(source))
         expected_source = '''
         def f(__ast_pe_var_4, __ast_pe_var_5, __ast_pe_var_6='foo'):
-            if __ast_pe_var_4:    
+            if __ast_pe_var_4:
                 __ast_pe_var_7 = __ast_pe_var_5 + list(__ast_pe_var_4)
                 __ast_pe_var_8 = __ast_pe_var_7
                 break
-            else:    
+            else:
                 __ast_pe_var_8 = __ast_pe_var_6
                 break
         '''

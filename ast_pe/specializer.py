@@ -17,7 +17,7 @@ def specialized_fn(fn, globals_, locals_, *args, **kwargs):
     if globals_.get('PRINT_AST'): # for demo
         print ast_to_source(specialized_tree)
     globals_.update(bindings)
-    return eval_ast(specialized_tree, globals_=globals_) 
+    return eval_ast(specialized_tree, globals_=globals_)
 
 
 def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
