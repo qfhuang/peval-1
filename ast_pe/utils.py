@@ -7,11 +7,22 @@ import unittest
 import logging
 import warnings
 
+import six
+
 import meta.asttools
 
 
 # ignore warnings about missing lineno and col_offset
 warnings.filterwarnings('ignore', module='meta.asttools.visitors', lineno=47)
+
+
+def get_fn_arg_id(fn_arg_node):
+    # In Py2 the node for a function argument is a ``Name`` node.
+    # In Py3 it is a special ``arg`` node.
+    if six.PY2:
+        return fn_arg_node.id
+    else:
+        return fn_arg_node.arg
 
 
 def fn_to_ast(fn):

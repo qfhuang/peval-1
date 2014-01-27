@@ -5,7 +5,7 @@ import ast
 import operator
 
 from ast_pe.utils import ast_to_string, get_logger, fn_to_ast, new_var_name, \
-        get_locals
+        get_locals, get_fn_arg_id
 from ast_pe.inliner import Inliner
 from ast_pe.var_simplifier import remove_assignments
 
@@ -367,14 +367,15 @@ class Optimizer(ast.NodeTransformer):
             # TODO - if callee_arg is "simple" - literal or name,
             # and is never assigned in inlined_body
             # then do not make an assignment, just use it in inlined_body
+            arg_id = get_fn_arg_id(arg)
             inlined_body.append(ast.Assign(
-                targets=[ast.Name(id=fn_arg.id, ctx=ast.Store())],
+                targets=[ast.Name(arg_id, ctx=ast.Store())],
                 value=callee_arg))
             is_known, value = self._get_node_value_if_known(callee_arg)
             if is_known:
                 # TODO - check that mutations are detected
-                self._constants[fn_arg.id] = value
-        
+                self._constants[arg_id] = value
+
         inlined_code = self._visit(fn_ast.body) # optimize inlined code
 
         if isinstance(inlined_code[-1], ast.Break): # single return
