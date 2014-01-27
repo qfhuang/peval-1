@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
-
-from ast_pe.utils import fn_to_ast, eval_ast, ast_to_source
+from ast_pe.utils import fn_to_ast, eval_ast
 from ast_pe.optimizer import optimized_ast
 
 
@@ -14,8 +13,6 @@ def specialized_fn(fn, globals_, locals_, *args, **kwargs):
     fn_ast = fn_to_ast(fn)
     specialized_tree, bindings = specialized_ast(
             fn_ast, globals_, *args, **kwargs)
-    if globals_.get('PRINT_AST'): # for demo
-        print ast_to_source(specialized_tree)
     globals_.update(bindings)
     return eval_ast(specialized_tree, globals_=globals_)
 
