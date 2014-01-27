@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 import ast
-from meta.asttools import get_symbols
 
+from ast_pe.symbol_visitor import get_symbols
 from ast_pe.utils import ast_to_string
 
 
