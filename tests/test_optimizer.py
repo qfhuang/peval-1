@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+from __future__ import division
 
 import ast
 
@@ -466,10 +467,21 @@ class TestBinaryArithmetic(BaseOptimizerTestCase):
     def test_opt(self):
         self._test_opt('1 + 1', {}, '2')
         self._test_opt('1 + (1 * 67.0)', {}, '68.0')
-        self._test_opt('1 / 2', {}, '0')
         self._test_opt('1 / 2.0', {}, '0.5')
         self._test_opt('3 % 2', {}, '1')
         self._test_opt('x / y', dict(x=1, y=2.0), '0.5')
+
+    def test_division_default(self):
+        self._test_opt('9 / 5', {}, '1' if six.PY2 else '1.8')
+
+    def test_division_truediv_in_constants(self):
+        self._test_opt('9 / 5', dict(division=division), '1.8')
+
+    def test_division_truediv_in_source(self):
+        self._test_opt(
+            'from __future__ import division\n9 / 5',
+            {},
+            'from __future__ import division\n1.8')
 
     def test_no_opt(self):
         class NaN(object):
