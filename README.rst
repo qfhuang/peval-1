@@ -39,7 +39,7 @@ and use it to process dynamic input. For example, for an interpreter
 Partial evaluation turns interpreter into a compiler, which runs much faster.
 
 The API is almost identical to ``functools.partial``::
-    
+
     import ast_pe
     power_27 = ast_pe.specialized_fn(power, globals(), locals(), n=27)
 
@@ -54,7 +54,7 @@ using ``ast_pe.decorators.pure_fn`` (if it is really pure).
 **TODO**
 Or you can make the library make all the bookkeeping for you, creating
 specialized versions and using them as meeded by the following decorator::
-    
+
     @ast_pe.specialize_on('n', globals(), locals())
     def power(x, n):
         ...
@@ -76,7 +76,7 @@ your function can heavily depend on a known at specialization input,
 and so specialized function might have quite a different control flow,
 as in the ``power(x, n)`` example.
 
-Variable mutation and assigment is handled gracefully (**TODO** 
+Variable mutation and assigment is handled gracefully (**TODO**
 right now only in the simplest cases).
 
 Tests
@@ -96,11 +96,11 @@ Internals
 Mutation and variable assigment
 -------------------------------
 
-There are several cases when initially known variable can be changed, 
+There are several cases when initially known variable can be changed,
 and we can no longer assume it is known.
 
 Variable assigment::
-   
+
     @specialize_on('n')
     def fn(n, x):
         n += x  # here n is no longer known
@@ -110,7 +110,7 @@ assume that it does not mutate ``foo``)::
 
     @specialize_on('foo')
     def fn(foo, x):
-        foo.some_method() 
+        foo.some_method()
 
 It can become more complex if other variables are envolved::
 
@@ -123,7 +123,7 @@ Here not only we can not assume ``a`` to be constant, but the call to
 ``some_method`` could have mutated ``a``, that can hold a reference to
 ``foo`` or some part of it, so that mutating ``a`` changes ``foo`` too.
 
-Another case that needs to be handled is variable escaping from 
+Another case that needs to be handled is variable escaping from
 the function via return statement (usually indirectly)::
 
 
@@ -140,7 +140,7 @@ To handle it in a sane way:
 
 * we need to know the data flow inside the function - how variables
   depend on each other
-* we need to know which variables might be mutated, and propagete this 
+* we need to know which variables might be mutated, and propagete this
   information up the data flow
 * we need to do the same for variables that leave the function
 * we need to know which variables are rebound via assigment, and mark them
