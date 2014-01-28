@@ -369,7 +369,7 @@ class Optimizer(ast.NodeTransformer):
             # then do not make an assignment, just use it in inlined_body
             arg_id = get_fn_arg_id(fn_arg)
             inlined_body.append(ast.Assign(
-                targets=[ast.Name(arg_id, ctx=ast.Store())],
+                targets=[ast.Name(arg_id, ast.Store())],
                 value=callee_arg))
             is_known, value = self._get_node_value_if_known(callee_arg)
             if is_known:
