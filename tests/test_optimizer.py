@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from __future__ import division
+from __future__ import print_function, division
 
 import ast
 
@@ -21,7 +21,7 @@ class BaseOptimizerTestCase(BaseTestCase):
         are among new bindings returned by optimizer.
         '''
         if print_source:
-            print ast_to_string(ast.parse(shift_source(source)))
+            print(ast_to_string(ast.parse(shift_source(source))))
         if expected_source is None:
             expected_source = source
         ast_tree = ast.parse(shift_source(source))
@@ -30,7 +30,7 @@ class BaseOptimizerTestCase(BaseTestCase):
         if expected_new_bindings:
             for k in expected_new_bindings:
                 if k not in bindings:
-                    print 'bindings:', bindings
+                    print('bindings:', bindings)
                 self.assertEqual(bindings[k], expected_new_bindings[k])
 
 
@@ -84,8 +84,8 @@ class TestIf(BaseOptimizerTestCase):
         self.assertTrue(all(true_values))
         for x in true_values:
             self._test_opt(
-                    'if x: print "x is True"', dict(x=x),
-                    'print "x is True"')
+                    'if x: print("x is True")', dict(x=x),
+                    'print("x is True")')
         self._test_opt('''
             if x:
                 do_stuff()
