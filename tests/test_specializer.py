@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+from __future__ import division
 
 import functools
 
@@ -55,7 +56,7 @@ class TestSpecializer(BaseTestCase):
             elif n == 0:
                 return 1
             elif n % 2 == 0:
-                v = power(x, n / 2)
+                v = power(x, n // 2)
                 return v * v
             else:
                 return x * power(x, n - 1)
@@ -118,7 +119,7 @@ def smart_power(n, x):
     elif n == 0:
         return 1
     elif n % 2 == 0:
-        v = smart_power(n / 2, x)
+        v = smart_power(n // 2, x)
         return v * v
     else:
         return x * smart_power(n - 1, x)

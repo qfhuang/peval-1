@@ -13,7 +13,7 @@ def power(x, n):
     elif n == 0:
         return 1
     elif n % 2 == 0:
-        v = power(x, n / 2)
+        v = power(x, n // 2)
         return v * v
     else:
         return x * power(x, n - 1)
