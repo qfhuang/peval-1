@@ -1,8 +1,10 @@
 # -*- encoding: utf-8 -*-
 
-import __builtin__
 import ast
 import operator
+
+import six
+from six.moves import builtins
 
 from ast_pe.utils import get_logger, fn_to_ast, new_var_name, \
         get_locals, get_fn_arg_id
@@ -40,29 +42,33 @@ class Optimizer(ast.NodeTransformer):
     '''
     class Rollback(Exception): pass
 
-    NUMBER_TYPES = (int, long, float)
-    STRING_TYPES = (str, unicode)
+    NUMBER_TYPES = six.integer_types + (float,)
+    STRING_TYPES = six.string_types + (six.text_type, six.binary_type)
 
     # build-in functions that return the same result for the same arguments
     # and do not change their arguments or global environment
     PURE_FUNCTIONS = (
-            abs, divmod,  staticmethod,
-            all, enumerate, int, ord, str,
-            any,  isinstance, pow, sum,
-            basestring, issubclass, super,
-            bin,  iter, property, tuple,
-            bool, filter, len, range, type,
-            bytearray, float, list, unichr,
-            callable, format,  reduce, unicode,
-            chr, frozenset, long,
-            classmethod, getattr, map, repr, xrange,
-            cmp,  max, reversed, zip,
-            hasattr,  round,
-            complex, hash, min, set, apply,
-            help, next,
-            dict, hex, object, slice, coerce,
-            dir, id, oct, sorted,
-            )
+        abs, divmod,  staticmethod,
+        all, enumerate, int, ord, str,
+        any,  isinstance, pow, sum,
+        issubclass, super,
+        bin,  iter, property, tuple,
+        bool, filter, len, range, type,
+        bytearray, float, list,
+        callable, format,
+        chr, frozenset,
+        classmethod, getattr, map, repr,
+        max, reversed, zip,
+        hasattr, round,
+        complex, hash, min, set,
+        help, next,
+        dict, hex, object, slice,
+        dir, id, oct, sorted,
+        )
+
+    if six.PY2:
+        PURE_FUNCTIONS += (
+            basestring, unichr, reduce, xrange, unicode, long, cmp, apply, coerce)
 
     def __init__(self, constants):
         '''
@@ -431,8 +437,8 @@ class Optimizer(ast.NodeTransformer):
                 return known(self._constants[name])
             else:
                 # TODO - how to check builtin redefinitions?
-                if hasattr(__builtin__, name):
-                    return known(getattr(__builtin__, name))
+                if hasattr(builtins, name):
+                    return known(getattr(builtins, name))
         elif isinstance(node, ast.Num):
             return known(node.n)
         elif isinstance(node, ast.Str):
