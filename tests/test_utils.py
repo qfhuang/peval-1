@@ -18,7 +18,9 @@ class TestCase(unittest.TestCase):
     def test_fn_to_ast(self):
         tree = ast_pe.utils.fn_to_ast(sample_fn)
         tree_dump = ast.dump(tree, annotate_fields=False)
-        self.assertEqual(tree_dump,
+
+        if six.PY2:
+            expected_dump = (
                 "Module([FunctionDef('sample_fn', "
                 "arguments([Name('x', Param()), Name('y', Param()), "
                 "Name('foo', Param())], None, 'kw', [Str('bar')]), "
@@ -26,6 +28,17 @@ class TestCase(unittest.TestCase):
                 "[Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))], "
                 "[Return(Subscript(Name('kw', Load()), "
                 "Index(Str('zzz')), Load()))])], [])])")
+        else:
+            expected_dump = (
+                "Module([FunctionDef('sample_fn', "
+                "arguments([arg('x', None), arg('y', None), arg('foo', None)], "
+                "None, None, [], 'kw', None, [Str('bar')], []), "
+                "[If(Compare(Name('foo', Load()), [Eq()], [Str('bar')]), "
+                "[Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))], "
+                "[Return(Subscript(Name('kw', Load()), "
+                "Index(Str('zzz')), Load()))])], [], None)])")
+
+        self.assertEqual(tree_dump, expected_dump)
 
     def test_compare_ast(self):
         tree = ast_pe.utils.fn_to_ast(sample_fn)
@@ -60,9 +73,6 @@ class TestCase(unittest.TestCase):
                     Index(Str('zzz')), Load()))])],
                 [],
                 *fn_returns)])
-
-        print(ast.dump(tree))
-        print(ast.dump(expected_tree))
 
         self.assertTrue(ast_pe.utils.ast_equal(tree, expected_tree))
         self.assertFalse(ast_pe.utils.ast_equal(
