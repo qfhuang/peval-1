@@ -1,11 +1,13 @@
 # -*- encoding: utf-8 -*-
 
+import six
+
+import unittest
 import ast
 from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
         Return, BinOp, Load, Add, Subscript, Index, Str, Eq
-import unittest
-
-import six
+if not six.PY2:
+    from ast import arg
 
 import ast_pe.utils
 
@@ -37,14 +39,14 @@ class TestCase(unittest.TestCase):
             fn_returns = tuple()
         else:
             fn_args = arguments(
-                args=[Name('x', Param()), Name('y', Param()), Name('foo', Param())],
+                args=[arg('x', None), arg('y', None), arg('foo', None)],
                 vararg=None,
                 varargannotation=None,
-                kwonlyargs=None,
+                kwonlyargs=[],
                 kwarg='kw',
                 kwargannotation=None,
                 defaults=[Str('bar')],
-                kw_defaults=None)
+                kw_defaults=[])
             fn_returns = (None,) # return annotation
 
         expected_tree = Module([
@@ -58,6 +60,10 @@ class TestCase(unittest.TestCase):
                     Index(Str('zzz')), Load()))])],
                 [],
                 *fn_returns)])
+
+        print(ast.dump(tree))
+        print(ast.dump(expected_tree))
+
         self.assertTrue(ast_pe.utils.ast_equal(tree, expected_tree))
         self.assertFalse(ast_pe.utils.ast_equal(
             tree, ast_pe.utils.fn_to_ast(sample_fn2)))
