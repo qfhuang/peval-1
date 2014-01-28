@@ -478,10 +478,12 @@ class TestBinaryArithmetic(BaseOptimizerTestCase):
         self._test_opt('9 / 5', dict(division=division), '1.8')
 
     def test_division_truediv_in_source(self):
+        # Several imports are necessary to check that the visitor will correctly discover
+        # the division import.
         self._test_opt(
-            'from __future__ import division\n9 / 5',
+            'from __future__ import print_function, division\n9 / 5',
             {},
-            'from __future__ import division\n1.8')
+            'from __future__ import print_function, division\n1.8')
 
     def test_no_opt(self):
         class NaN(object):

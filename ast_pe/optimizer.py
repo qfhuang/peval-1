@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+from __future__ import division
 
 import ast
 import operator
@@ -130,6 +131,19 @@ class Optimizer(ast.NodeTransformer):
         # end of copy-paste
         self._depth -= 1
         logger.debug('%s result:\n%s', prefix, ast.dump(node))
+        return node
+
+    def visit_Module(self, node):
+        # True if old behavior of division operator is active
+        # (truediv for floats, floordiv for integers).
+        self._py2_div = (six.PY2 and self._constants.get('division') is not division)
+        self.generic_visit(node)
+        return node
+
+    def visit_ImportFrom(self, node):
+        # Detecting 'from __future__ import division'
+        if node.module == '__future__' and any(alias.name == 'division' for alias in node.names):
+            self._py2_div = False
         return node
 
     def visit_FunctionDef(self, node):
@@ -276,7 +290,6 @@ class Optimizer(ast.NodeTransformer):
                 ast.Add: operator.add,
                 ast.Sub: operator.sub,
                 ast.Mult: operator.mul,
-                ast.Div: operator.div, # TODO - detect truediv!
                 ast.Mod: operator.mod,
                 ast.Pow: operator.pow,
                 ast.LShift: operator.lshift,
@@ -286,6 +299,11 @@ class Optimizer(ast.NodeTransformer):
                 ast.BitXor: operator.xor,
                 ast.FloorDiv: operator.floordiv,
                 }
+        if self._py2_div:
+            operations[ast.Div] = operator.div
+        else:
+            operations[ast.Div] = operator.truediv
+
         # FIXME - call l_value.__add__(r_value), etc.
         # than we can get rid of NUMBER_TYPES check
         can_apply = lambda is_known, value: is_known and \
