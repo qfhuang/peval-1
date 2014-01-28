@@ -117,6 +117,10 @@ class TestIf(BaseOptimizerTestCase):
         '''
         class Falsy(object):
             def __nonzero__(self):
+                # For Python 2
+                return False
+            def __bool__(self):
+                # For Python 3
                 return False
         false_values = [0, '', [], {}, set(), False, None, Falsy()]
         for x in false_values:
