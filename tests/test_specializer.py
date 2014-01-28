@@ -91,12 +91,12 @@ class TestSpecializer(BaseTestCase):
         v1 = v2 = e1 = e2 = None
         try:
             v1 = fn1(*args, **kwargs)
-        except Exception as e1:
-            pass
+        except Exception as _e1:
+            e1 = _e1
         try:
             v2 = fn2(*args, **kwargs)
-        except Exception as e2:
-            pass
+        except Exception as _e2:
+            e2 = _e2
         if e1 or e2:
             # reraise exception, if there is only one
             if e1 is None: fn2(*args, **kwargs)
@@ -105,7 +105,7 @@ class TestSpecializer(BaseTestCase):
                 # assume that fn1 is more correct, so raise exception from fn2
                 fn2(*args, **kwargs)
             self.assertEqual(type(e1), type(e2))
-            self.assertEqual(e1.message, e2.message)
+            self.assertEqual(e1.args, e2.args)
         else:
             self.assertIsNone(e1)
             self.assertIsNone(e2)
