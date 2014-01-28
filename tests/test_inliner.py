@@ -2,8 +2,10 @@
 
 import ast
 
-from ast_pe.utils import BaseTestCase, shift_source, get_locals
+from ast_pe.utils import shift_source, get_locals
 from ast_pe.inliner import Inliner
+
+from .utils import BaseTestCase
 
 
 class TestInliner(BaseTestCase):

@@ -2,10 +2,12 @@
 
 import ast
 
-from ast_pe.utils import BaseTestCase, shift_source, ast_to_string, \
+from ast_pe.utils import shift_source, ast_to_string, \
         ast_to_source, fn_to_ast
 from ast_pe.optimizer import optimized_ast
 from ast_pe.decorators import pure_function, inline
+
+from .utils import BaseTestCase
 
 
 class BaseOptimizerTestCase(BaseTestCase):

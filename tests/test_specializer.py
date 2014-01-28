@@ -2,9 +2,10 @@
 
 import functools
 
-from ast_pe.utils import BaseTestCase
 from ast_pe.specializer import specialized_fn
 from ast_pe.decorators import inline
+
+from .utils import BaseTestCase
 
 
 class TestSpecializer(BaseTestCase):
