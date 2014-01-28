@@ -367,7 +367,7 @@ class Optimizer(ast.NodeTransformer):
             # TODO - if callee_arg is "simple" - literal or name,
             # and is never assigned in inlined_body
             # then do not make an assignment, just use it in inlined_body
-            arg_id = get_fn_arg_id(arg)
+            arg_id = get_fn_arg_id(fn_arg)
             inlined_body.append(ast.Assign(
                 targets=[ast.Name(arg_id, ctx=ast.Store())],
                 value=callee_arg))
