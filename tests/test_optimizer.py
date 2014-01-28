@@ -2,6 +2,8 @@
 
 import ast
 
+import six
+
 from ast_pe.utils import shift_source, fn_to_ast
 from ast_pe.optimizer import optimized_ast
 from ast_pe.decorators import pure_function, inline
@@ -64,13 +66,13 @@ class TestConstantPropagation(BaseOptimizerTestCase):
         self._test_opt(
                 'm * n', dict(m=Float(2.0)),
                 'm * n')
-        class String(str): pass
+        class Text(six.text_type): pass
         self._test_opt(
-                'm + n', dict(m=String('foo')),
+                'm + n', dict(m=Text(six.u('foo'))),
                 'm + n')
-        class Unicode(unicode): pass
+        class Binary(six.binary_type): pass
         self._test_opt(
-                'm + n', dict(m=Unicode(u'foo')),
+                'm + n', dict(m=Binary(six.b('foo'))),
                 'm + n')
 
 class TestIf(BaseOptimizerTestCase):
