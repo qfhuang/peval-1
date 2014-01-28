@@ -1,4 +1,6 @@
 # -*- encoding: utf-8 -*-
+import six
+
 from ast_pe.utils import fn_to_ast, eval_ast, get_fn_arg_id
 from ast_pe.optimizer import optimized_ast
 
@@ -31,7 +33,7 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
         del fn_args.args[:len(args)]
     if kwargs:
         arg_by_id = dict((get_fn_arg_id(arg), arg) for arg in fn_args.args)
-        for kwarg_name, kwarg_value in kwargs.iteritems():
+        for kwarg_name, kwarg_value in six.iteritems(kwargs):
             constants[kwarg_name] = kwarg_value
             fn_args.args.remove(arg_by_id[kwarg_name])
     return optimized_ast(fn_ast, constants)
