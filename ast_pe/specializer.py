@@ -26,10 +26,16 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
     '''
     constants = dict(global_bindings)
     fn_args = fn_ast.body[0].args
-    assert not fn_args.vararg and not fn_args.kwarg # TODO
+
+    # TODO: need to make a copy of args and perform a proper processing
+    # using, for example, funcsigs.Signature.bind().
+    assert not fn_args.vararg and not fn_args.kwarg
     if args:
         for arg, value in zip(fn_args.args[:len(args)], args):
             constants[get_fn_arg_id(arg)] = value
+        # Remove positional defaults, if some of user-provided args cover them.
+        if len(args) > len(fn_args.args) - len(fn_args.defaults):
+            del fn_args.defaults[:len(args) - (len(fn_args.args) - len(fn_args.defaults))]
         del fn_args.args[:len(args)]
     if kwargs:
         arg_by_id = dict((get_fn_arg_id(arg), arg) for arg in fn_args.args)
