@@ -5,15 +5,8 @@ import ast
 import inspect
 import unittest
 import logging
-import warnings
 
 import six
-
-import meta.asttools
-
-
-# ignore warnings about missing lineno and col_offset
-warnings.filterwarnings('ignore', module='meta.asttools.visitors', lineno=47)
 
 
 def get_fn_arg_id(fn_arg_node):
@@ -61,18 +54,6 @@ def ast_equal(tree1, tree2):
     ''' Returns whether AST tree1 is equal to tree2
     '''
     return ast.dump(tree1) == ast.dump(tree2)
-
-
-def ast_to_source(tree):
-    ''' Return python source of AST tree, as a string.
-    '''
-    return meta.asttools.dump_python_source(tree)
-
-
-def ast_to_string(tree):
-    ''' Return pretty-printed AST, as a string.
-    '''
-    return meta.asttools.str_ast(tree)
 
 
 def get_logger(name, debug=False):

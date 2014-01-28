@@ -3,7 +3,6 @@
 import ast
 
 from ast_pe.symbol_visitor import get_symbols
-from ast_pe.utils import ast_to_string
 
 
 def remove_assignments(node_list):

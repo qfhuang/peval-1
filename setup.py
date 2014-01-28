@@ -11,8 +11,7 @@ setup(
     author="Konstantin Lopuhin",
     author_email="kostia.lopuhin@gmail.com",
     packages=find_packages(),
-    install_requires=["meta"],
-    tests_require=["nose"],
+    tests_require=["nose", "meta"],
     platforms=["any"],
     keywords="AST partial optimization",
     classifiers=[

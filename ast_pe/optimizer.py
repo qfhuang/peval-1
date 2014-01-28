@@ -4,7 +4,7 @@ import __builtin__
 import ast
 import operator
 
-from ast_pe.utils import ast_to_string, get_logger, fn_to_ast, new_var_name, \
+from ast_pe.utils import get_logger, fn_to_ast, new_var_name, \
         get_locals, get_fn_arg_id
 from ast_pe.inliner import Inliner
 from ast_pe.var_simplifier import remove_assignments
@@ -90,7 +90,7 @@ class Optimizer(ast.NodeTransformer):
         Also do some logging.
         '''
         prefix = '--' * self._depth
-        logger.debug('%s visit:\n%s', prefix, ast_to_string(node))
+        logger.debug('%s visit:\n%s', prefix, ast.dump(node))
         self._depth += 1
         # copy-paste from ast.py, added self._current_block handling
         block_fields = ['body', 'orelse'] # TODO more?
@@ -123,7 +123,7 @@ class Optimizer(ast.NodeTransformer):
                     setattr(node, field, new_node)
         # end of copy-paste
         self._depth -= 1
-        logger.debug('%s result:\n%s', prefix, ast_to_string(node))
+        logger.debug('%s result:\n%s', prefix, ast.dump(node))
         return node
 
     def visit_FunctionDef(self, node):

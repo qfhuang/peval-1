@@ -7,6 +7,8 @@ import unittest
 
 import ast_pe.utils
 
+from .utils import ast_to_source
+
 
 class TestCase(unittest.TestCase):
     def test_fn_to_ast(self):
@@ -46,7 +48,8 @@ class TestCase(unittest.TestCase):
 
     def test_get_source(self):
         tree = ast_pe.utils.fn_to_ast(sample_fn)
-        source = ast_pe.utils.ast_to_source(tree)
+        source = ast_to_source(tree)
+
         self.assertEqual(source, """
 def sample_fn(x, y, foo='bar', **kw):
     if (foo == 'bar'):

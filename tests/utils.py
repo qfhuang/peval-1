@@ -2,8 +2,30 @@ from __future__ import print_function
 
 import ast
 import unittest
+import warnings
 
-from ast_pe.utils import ast_to_string, ast_to_source
+import meta.asttools
+
+
+# ignore warnings about missing lineno and col_offset
+warnings.filterwarnings('ignore', module='meta.asttools.visitors', lineno=47)
+
+
+def ast_to_source(tree):
+    ''' Return python source of AST tree, as a string.
+    '''
+    source = meta.asttools.dump_python_source(tree)
+
+    # trim trailing spaces --- some pretty printers add it
+    source = "\n".join(line.rstrip() for line in source.split("\n"))
+
+    return source
+
+
+def ast_to_string(tree):
+    ''' Return pretty-printed AST, as a string.
+    '''
+    return meta.asttools.str_ast(tree)
 
 
 class BaseTestCase(unittest.TestCase):
