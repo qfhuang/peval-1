@@ -5,6 +5,8 @@ from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
         Return, BinOp, Load, Add, Subscript, Index, Str, Eq
 import unittest
 
+import six
+
 import ast_pe.utils
 
 from .utils import ast_to_source
@@ -25,13 +27,37 @@ class TestCase(unittest.TestCase):
 
     def test_compare_ast(self):
         tree = ast_pe.utils.fn_to_ast(sample_fn)
-        expected_tree = Module([FunctionDef('sample_fn',
-            arguments([Name('x', Param()), Name('y', Param()),
-                Name('foo', Param())], None, 'kw', [Str('bar')]),
-            [If(Compare(Name('foo', Load()), [Eq()], [Str('bar')]),
-                [Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))],
-                [Return(Subscript(Name('kw', Load()),
-                    Index(Str('zzz')), Load()))])], [])])
+
+        if six.PY2:
+            fn_args = arguments(
+                args=[Name('x', Param()), Name('y', Param()), Name('foo', Param())],
+                vararg=None,
+                kwarg='kw',
+                defaults=[Str('bar')])
+            fn_returns = tuple()
+        else:
+            fn_args = arguments(
+                args=[Name('x', Param()), Name('y', Param()), Name('foo', Param())],
+                vararg=None,
+                varargannotation=None,
+                kwonlyargs=None,
+                kwarg='kw',
+                kwargannotation=None,
+                defaults=[Str('bar')],
+                kw_defaults=None)
+            fn_returns = (None,) # return annotation
+
+        expected_tree = Module([
+            FunctionDef(
+                'sample_fn',
+                fn_args,
+                [
+                    If(Compare(Name('foo', Load()), [Eq()], [Str('bar')]),
+                    [Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))],
+                    [Return(Subscript(Name('kw', Load()),
+                    Index(Str('zzz')), Load()))])],
+                [],
+                *fn_returns)])
         self.assertTrue(ast_pe.utils.ast_equal(tree, expected_tree))
         self.assertFalse(ast_pe.utils.ast_equal(
             tree, ast_pe.utils.fn_to_ast(sample_fn2)))
