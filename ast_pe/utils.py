@@ -84,7 +84,7 @@ def get_locals(ast_tree):
 class LocalsVisitor(ast.NodeVisitor):
     def __init__(self):
         self._locals = set()
-        self._locals_ctx = (ast.Store, ast.Param) if six.PY2 else (ast.Store)
+        self._locals_ctx = (ast.Store, ast.Param) if six.PY2 else ast.Store
         super(LocalsVisitor, self).__init__()
 
     def visit_arg(self, node):
