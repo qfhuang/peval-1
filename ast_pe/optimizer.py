@@ -7,9 +7,8 @@ import operator
 import six
 from six.moves import builtins
 
-from ast_pe.utils import get_logger, fn_to_ast, new_var_name, \
-        get_locals, get_fn_arg_id
-from ast_pe.inliner import Inliner
+from ast_pe.utils import get_logger, fn_to_ast, new_var_name, get_fn_arg_id
+from ast_pe.mangler import mangle
 from ast_pe.var_simplifier import remove_assignments
 
 
@@ -380,9 +379,9 @@ class Optimizer(ast.NodeTransformer):
         is_known, fn = self._get_node_value_if_known(node.func)
         assert is_known
         fn_ast = fn_to_ast(fn).body[0]
-        inliner = Inliner(self._var_count, get_locals(fn_ast))
-        fn_ast = inliner.visit(fn_ast)
-        self._var_count = inliner.get_var_count()
+
+        new_fn_ast, new_var_count, return_var = mangle(fn_ast, self._var_count)
+        self._var_count = new_var_count
 
         inlined_body = []
         assert not node.kwargs and not node.starargs # TODO
@@ -421,7 +420,7 @@ class Optimizer(ast.NodeTransformer):
                     ])
 
         all_nodes = inlined_body + \
-                [ast.Name(id=inliner.get_return_var(), ctx=ast.Load())]
+                [ast.Name(id=return_var, ctx=ast.Load())]
         remove_assignments(all_nodes)
 
         return all_nodes[:-1], all_nodes[-1]

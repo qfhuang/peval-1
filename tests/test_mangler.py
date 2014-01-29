@@ -3,7 +3,7 @@
 import ast
 
 from ast_pe.utils import shift_source, get_locals
-from ast_pe.inliner import Inliner
+from ast_pe.mangler import mangle
 
 from .utils import BaseTestCase
 
@@ -29,13 +29,7 @@ class TestInliner(BaseTestCase):
                 __ast_pe_var_8 = __ast_pe_var_6
                 break
         '''
-        inliner = Inliner(3, get_locals(ast_tree))
-        new_ast = inliner.visit(ast_tree)
+        new_ast, new_var_count, return_var = mangle(ast_tree, 3)
         self.assertASTEqual(new_ast, ast.parse(shift_source(expected_source)))
-        self.assertEqual(inliner.get_var_count(), 8)
-        self.assertEqual(inliner.get_return_var(), '__ast_pe_var_8')
-        self.assertEqual(inliner.get_bindings(), {
-            'x': '__ast_pe_var_4',
-            'y': '__ast_pe_var_5',
-            'z': '__ast_pe_var_6',
-            'b': '__ast_pe_var_7'})
+        self.assertEqual(new_var_count, 8)
+        self.assertEqual(return_var, '__ast_pe_var_8')

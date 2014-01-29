@@ -2,10 +2,11 @@
 
 import ast
 
+from ast_pe.utils import get_locals
 from ast_pe.utils import new_var_name
 
 
-class Inliner(ast.NodeTransformer):
+class Mangler(ast.NodeTransformer):
     ''' Mangle all variable names, returns.
     '''
     def __init__(self, var_count_start, fn_locals):
@@ -13,13 +14,10 @@ class Inliner(ast.NodeTransformer):
         self._locals = fn_locals
         self._mangled = {} # {original name -> mangled name}
         self._return_var = None
-        super(Inliner, self).__init__()
+        super(Mangler, self).__init__()
 
     def get_var_count(self):
         return self._var_count
-
-    def get_bindings(self):
-        return self._mangled
 
     def get_return_var(self):
         return self._return_var
@@ -61,3 +59,10 @@ class Inliner(ast.NodeTransformer):
                     value=node.value),
                 ast.Break()]
 
+
+def mangle(node, var_count):
+    mangler = Mangler(var_count, get_locals(node))
+    new_node = mangler.visit(node)
+    new_var_count = mangler.get_var_count()
+    return_var = mangler.get_return_var()
+    return new_node, new_var_count, return_var
