@@ -40,22 +40,22 @@ Partial evaluation turns interpreter into a compiler, which runs much faster.
 
 The API is almost identical to ``functools.partial``::
 
-    import ast_pe
-    power_27 = ast_pe.specialized_fn(power, globals(), locals(), n=27)
+    import peval
+    power_27 = peval.specialized_fn(power, globals(), locals(), n=27)
 
 You have to pass globals and locals right now, so the specializer
 knowns the environment where specialized function was defined.
 
 You must mark functions that you want inlined (maybe recursively)
-with ``ast_pe.decorators.inline``. If some function or methods
+with ``peval.decorators.inline``. If some function or methods
 operates on your static input, you can benefit from marking it as pure
-using ``ast_pe.decorators.pure_fn`` (if it is really pure).
+using ``peval.decorators.pure_fn`` (if it is really pure).
 
 **TODO**
 Or you can make the library make all the bookkeeping for you, creating
 specialized versions and using them as meeded by the following decorator::
 
-    @ast_pe.specialize_on('n', globals(), locals())
+    @peval.specialize_on('n', globals(), locals())
     def power(x, n):
         ...
 

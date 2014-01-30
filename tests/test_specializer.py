@@ -3,8 +3,8 @@ from __future__ import division
 
 import functools
 
-from ast_pe.specializer import specialized_fn
-from ast_pe.decorators import inline
+from peval.specializer import specialized_fn
+from peval.decorators import inline
 
 from .utils import BaseTestCase
 

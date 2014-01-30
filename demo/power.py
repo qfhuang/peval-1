@@ -3,7 +3,7 @@
 import sys
 sys.path.append('.')
 
-from ast_pe.decorators import inline
+from peval.decorators import inline
 
 
 @inline
@@ -18,7 +18,7 @@ def power(x, n):
     else:
         return x * power(x, n - 1)
 
-from ast_pe import specialized_fn
+from peval import specialized_fn
 PRINT_AST = True
 
 power_5 = specialized_fn(power, globals(), locals(), n=5)

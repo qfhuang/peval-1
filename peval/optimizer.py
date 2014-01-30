@@ -7,9 +7,9 @@ import operator
 import six
 from six.moves import builtins
 
-from ast_pe.utils import get_logger, fn_to_ast, new_var_name, get_fn_arg_id
-from ast_pe.mangler import mangle
-from ast_pe.var_simplifier import remove_assignments
+from peval.utils import get_logger, fn_to_ast, new_var_name, get_fn_arg_id
+from peval.mangler import mangle
+from peval.var_simplifier import remove_assignments
 
 
 logger = get_logger(__name__, debug=False)
@@ -434,7 +434,7 @@ class Optimizer(ast.NodeTransformer):
             return True
         else:
             # TODO - implement decorator
-            if getattr(fn, '_ast_pe_is_pure', False):
+            if getattr(fn, '_peval_is_pure', False):
                 return True
             # TODO - or analyze fn body
             return False
@@ -442,7 +442,7 @@ class Optimizer(ast.NodeTransformer):
     def _is_inlined_fn(self, fn):
         ''' fn should be inlined
         '''
-        return bool(getattr(fn, '_ast_pe_inline', False))
+        return bool(getattr(fn, '_peval_inline', False))
 
     def _get_node_value_if_known(self, node):
         ''' Return tuple of boolean(value is know), and value itself

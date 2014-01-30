@@ -5,9 +5,9 @@ import ast
 
 import six
 
-from ast_pe.utils import shift_source, fn_to_ast
-from ast_pe.optimizer import optimized_ast
-from ast_pe.decorators import pure_function, inline
+from peval.utils import shift_source, fn_to_ast
+from peval.optimizer import optimized_ast
+from peval.decorators import pure_function, inline
 
 from .utils import BaseTestCase, ast_to_string, ast_to_source
 
@@ -207,8 +207,8 @@ class TestFnEvaluation(BaseOptimizerTestCase):
         self._test_opt(
                 'z = fn(x, y)',
                 dict(fn=fn, x=[10], y=20.0),
-                'z = __ast_pe_var_1',
-                dict(__ast_pe_var_1=[10, 20.0]))
+                'z = __peval_var_1',
+                dict(__peval_var_1=[10, 20.0]))
 
     def test_call_with_starargs(self):
         pass # TODO
@@ -420,11 +420,11 @@ class TestFunctional(BaseOptimizerTestCase):
         self._test_opt(source, dict(n=2), '''
         def fn(x, n):
             v = 1
-            for _ in __ast_pe_var_1:
+            for _ in __peval_var_1:
                 v *= x
             return v
             ''',
-            dict(__ast_pe_var_1=range(2)))
+            dict(__peval_var_1=range(2)))
 
 
 class TestSimpleMutation(BaseOptimizerTestCase):
@@ -523,10 +523,10 @@ class TestInlining(BaseOptimizerTestCase):
                     a = x.foo()
                     if a:
                         b = a * 10
-                    __ast_pe_var_2 = []
-                    for __ast_pe_var_3 in xrange(x):
-                        __ast_pe_var_2.append(x.do_stuff())
-                    a = (b + __ast_pe_var_2)
+                    __peval_var_2 = []
+                    for __peval_var_3 in xrange(x):
+                        __peval_var_2.append(x.do_stuff())
+                    a = (b + __peval_var_2)
                     return a
                 ''')
 
@@ -555,20 +555,20 @@ class TestInlining(BaseOptimizerTestCase):
                     a = x.foo()
                     if a:
                         b = a * 10
-                        __ast_pe_var_1 = x - 3
-                        __ast_pe_var_5 = True
-                        while __ast_pe_var_5:
-                            __ast_pe_var_5 = False
-                            __ast_pe_var_2 = []
-                            for __ast_pe_var_3 in iter(__ast_pe_var_1):
-                                __ast_pe_var_2.append(__ast_pe_var_3.do_stuff())
-                            if __ast_pe_var_2:
-                                __ast_pe_var_4 = __ast_pe_var_2
+                        __peval_var_1 = x - 3
+                        __peval_var_5 = True
+                        while __peval_var_5:
+                            __peval_var_5 = False
+                            __peval_var_2 = []
+                            for __peval_var_3 in iter(__peval_var_1):
+                                __peval_var_2.append(__peval_var_3.do_stuff())
+                            if __peval_var_2:
+                                __peval_var_4 = __peval_var_2
                                 break
                             else:
-                                __ast_pe_var_4 = None
+                                __peval_var_4 = None
                                 break
-                        a = __ast_pe_var_4 + b
+                        a = __peval_var_4 + b
                     return a
                 '''
                 )
@@ -631,9 +631,9 @@ class TestRecursionInlining(BaseOptimizerTestCase):
                 '''
                 @inline
                 def power(x, n):
-                    __ast_pe_var_11 = (x * 1)
-                    __ast_pe_var_7 = (__ast_pe_var_11 * __ast_pe_var_11)
-                    __ast_pe_var_3 = (__ast_pe_var_7 * __ast_pe_var_7)
-                    return x * __ast_pe_var_3
+                    __peval_var_11 = (x * 1)
+                    __peval_var_7 = (__peval_var_11 * __peval_var_11)
+                    __peval_var_3 = (__peval_var_7 * __peval_var_7)
+                    return x * __peval_var_3
                 ''')
 

@@ -3,5 +3,7 @@
 *.pyc
 *.c
 *.out
-ast_pe.egg-info/
+peval.egg-info/
 env/
+build/
+dist/

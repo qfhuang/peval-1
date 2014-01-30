@@ -70,7 +70,7 @@ def get_logger(name, debug=False):
 
 def new_var_name(instance):
     instance._var_count += 1
-    return '__ast_pe_var_%d' % instance._var_count
+    return '__peval_var_%d' % instance._var_count
 
 
 def get_locals(ast_tree):

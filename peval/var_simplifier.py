@@ -2,7 +2,7 @@
 
 import ast
 
-from ast_pe.symbol_visitor import get_symbols
+from peval.symbol_visitor import get_symbols
 
 
 def remove_assignments(node_list):

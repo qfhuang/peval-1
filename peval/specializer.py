@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 import six
 
-from ast_pe.utils import fn_to_ast, eval_ast, get_fn_arg_id
-from ast_pe.optimizer import optimized_ast
+from peval.utils import fn_to_ast, eval_ast, get_fn_arg_id
+from peval.optimizer import optimized_ast
 
 
 def specialized_fn(fn, globals_, locals_, *args, **kwargs):

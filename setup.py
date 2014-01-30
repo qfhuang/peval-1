@@ -3,11 +3,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="ast_pe",
+    name="peval",
     version="0.1",
     description="Partial evaluation on AST level",
     long_description=open("README.rst").read(),
-    url="https://github.com/Manticore/ast_pe",
+    url="https://github.com/Manticore/peval",
     author="Konstantin Lopuhin",
     author_email="kostia.lopuhin@gmail.com",
     maintainer="Bogdan Opanchuk",

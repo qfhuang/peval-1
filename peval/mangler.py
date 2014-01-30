@@ -2,8 +2,8 @@
 
 import ast
 
-from ast_pe.utils import get_locals
-from ast_pe.utils import new_var_name
+from peval.utils import get_locals
+from peval.utils import new_var_name
 
 
 class Mangler(ast.NodeTransformer):
