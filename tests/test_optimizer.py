@@ -207,8 +207,8 @@ class TestFnEvaluation(BaseOptimizerTestCase):
         self._test_opt(
                 'z = fn(x, y)',
                 dict(fn=fn, x=[10], y=20.0),
-                'z = __peval_var_1',
-                dict(__peval_var_1=[10, 20.0]))
+                'z = __binding_1',
+                dict(__binding_1=[10, 20.0]))
 
     def test_call_with_starargs(self):
         pass # TODO
@@ -420,11 +420,11 @@ class TestFunctional(BaseOptimizerTestCase):
         self._test_opt(source, dict(n=2), '''
         def fn(x, n):
             v = 1
-            for _ in __peval_var_1:
+            for _ in __binding_1:
                 v *= x
             return v
             ''',
-            dict(__peval_var_1=range(2)))
+            dict(__binding_1=range(2)))
 
 
 class TestSimpleMutation(BaseOptimizerTestCase):
@@ -523,10 +523,10 @@ class TestInlining(BaseOptimizerTestCase):
                     a = x.foo()
                     if a:
                         b = a * 10
-                    __peval_var_2 = []
-                    for __peval_var_3 in xrange(x):
-                        __peval_var_2.append(x.do_stuff())
-                    a = (b + __peval_var_2)
+                    __mangled_2 = []
+                    for __mangled_3 in xrange(x):
+                        __mangled_2.append(x.do_stuff())
+                    a = (b + __mangled_2)
                     return a
                 ''')
 
@@ -555,20 +555,20 @@ class TestInlining(BaseOptimizerTestCase):
                     a = x.foo()
                     if a:
                         b = a * 10
-                        __peval_var_1 = x - 3
-                        __peval_var_5 = True
-                        while __peval_var_5:
-                            __peval_var_5 = False
-                            __peval_var_2 = []
-                            for __peval_var_3 in iter(__peval_var_1):
-                                __peval_var_2.append(__peval_var_3.do_stuff())
-                            if __peval_var_2:
-                                __peval_var_4 = __peval_var_2
+                        __mangled_1 = x - 3
+                        __while_5 = True
+                        while __while_5:
+                            __while_5 = False
+                            __mangled_2 = []
+                            for __mangled_3 in iter(__mangled_1):
+                                __mangled_2.append(__mangled_3.do_stuff())
+                            if __mangled_2:
+                                __return_4 = __mangled_2
                                 break
                             else:
-                                __peval_var_4 = None
+                                __return_4 = None
                                 break
-                        a = __peval_var_4 + b
+                        a = __return_4 + b
                     return a
                 '''
                 )
@@ -631,9 +631,9 @@ class TestRecursionInlining(BaseOptimizerTestCase):
                 '''
                 @inline
                 def power(x, n):
-                    __peval_var_11 = (x * 1)
-                    __peval_var_7 = (__peval_var_11 * __peval_var_11)
-                    __peval_var_3 = (__peval_var_7 * __peval_var_7)
-                    return x * __peval_var_3
+                    __return_11 = (x * 1)
+                    __return_7 = (__return_11 * __return_11)
+                    __return_3 = (__return_7 * __return_7)
+                    return x * __return_3
                 ''')
 

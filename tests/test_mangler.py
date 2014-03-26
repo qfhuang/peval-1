@@ -2,7 +2,8 @@
 
 import ast
 
-from peval.utils import shift_source, get_locals
+from peval.gensym import GenSym
+from peval.utils import shift_source
 from peval.mangler import mangle
 
 from .utils import BaseTestCase
@@ -20,16 +21,16 @@ class TestInliner(BaseTestCase):
         '''
         ast_tree = ast.parse(shift_source(source))
         expected_source = '''
-        def f(__peval_var_4, __peval_var_5, __peval_var_6='foo'):
-            if __peval_var_4:
-                __peval_var_7 = __peval_var_5 + list(__peval_var_4)
-                __peval_var_8 = __peval_var_7
+        def f(__mangled_1, __mangled_2, __mangled_3='foo'):
+            if __mangled_1:
+                __mangled_4 = __mangled_2 + list(__mangled_1)
+                __return_5 = __mangled_4
                 break
             else:
-                __peval_var_8 = __peval_var_6
+                __return_5 = __mangled_3
                 break
         '''
-        new_ast, new_var_count, return_var = mangle(ast_tree, 3)
+        gen_sym = GenSym(ast_tree)
+        new_ast, new_gen_sym_state, return_var = mangle(ast_tree, gen_sym.get_state())
         self.assertASTEqual(new_ast, ast.parse(shift_source(expected_source)))
-        self.assertEqual(new_var_count, 8)
-        self.assertEqual(return_var, '__peval_var_8')
+        self.assertEqual(return_var, '__return_5')

@@ -2,22 +2,18 @@
 
 import ast
 
-from peval.utils import get_locals
-from peval.utils import new_var_name
+from peval.gensym import GenSym, get_locals
 
 
 class Mangler(ast.NodeTransformer):
     ''' Mangle all variable names, returns.
     '''
-    def __init__(self, var_count_start, fn_locals):
-        self._var_count = var_count_start
+    def __init__(self, fn_locals, gen_sym):
+        self._gen_sym = gen_sym
         self._locals = fn_locals
         self._mangled = {} # {original name -> mangled name}
         self._return_var = None
         super(Mangler, self).__init__()
-
-    def get_var_count(self):
-        return self._var_count
 
     def get_return_var(self):
         return self._return_var
@@ -33,7 +29,7 @@ class Mangler(ast.NodeTransformer):
             if node_id in self._mangled:
                 mangled_id = self._mangled[node_id]
             else:
-                mangled_id = new_var_name(self)
+                mangled_id = self._gen_sym('mangled')
                 self._mangled[node_id] = mangled_id
             if is_name:
                 return ast.Name(id=mangled_id, ctx=node.ctx)
@@ -53,16 +49,17 @@ class Mangler(ast.NodeTransformer):
         '''
         self.generic_visit(node)
         if self._return_var is None:
-            self._return_var = new_var_name(self)
+            self._return_var = self._gen_sym('return')
         return [ast.Assign(
                     targets=[ast.Name(id=self._return_var, ctx=ast.Store())],
                     value=node.value),
                 ast.Break()]
 
 
-def mangle(node, var_count):
-    mangler = Mangler(var_count, get_locals(node))
+def mangle(node, gen_sym_state):
+    locals_ = get_locals(node)
+    gen_sym = GenSym.from_state(gen_sym_state)
+    mangler = Mangler(locals_, gen_sym)
     new_node = mangler.visit(node)
-    new_var_count = mangler.get_var_count()
     return_var = mangler.get_return_var()
-    return new_node, new_var_count, return_var
+    return new_node, gen_sym.get_state(), return_var

@@ -7,7 +7,8 @@ import operator
 import six
 from six.moves import builtins
 
-from peval.utils import get_logger, fn_to_ast, new_var_name, get_fn_arg_id
+from peval.gensym import GenSym
+from peval.utils import get_logger, fn_to_ast, get_fn_arg_id
 from peval.mangler import mangle
 from peval.var_simplifier import remove_assignments
 
@@ -19,7 +20,8 @@ def optimized_ast(ast_tree, constants):
     ''' Try running Optimizer until it finishes without rollback.
     Return optimized AST and a list of bindings that the AST needs.
     '''
-    optimizer = Optimizer(constants)
+    gen_sym = GenSym(ast_tree)
+    optimizer = Optimizer(constants, gen_sym)
     while True:
         try:
             new_ast = optimizer.visit(ast_tree)
@@ -70,12 +72,12 @@ class Optimizer(ast.NodeTransformer):
         PURE_FUNCTIONS += (
             basestring, unichr, reduce, xrange, unicode, long, cmp, apply, coerce)
 
-    def __init__(self, constants):
+    def __init__(self, constants, gen_sym):
         '''
         :constants: a dict names-> values of variables known at compile time
         '''
+        self._gen_sym = gen_sym
         self._constants = dict(constants)
-        self._var_count = 0
         self._depth = 0
         self._mutated_nodes = set()
         self._current_block = None # None, or a list of nodes that correspond
@@ -380,8 +382,8 @@ class Optimizer(ast.NodeTransformer):
         assert is_known
         fn_ast = fn_to_ast(fn).body[0]
 
-        new_fn_ast, new_var_count, return_var = mangle(fn_ast, self._var_count)
-        self._var_count = new_var_count
+        new_fn_ast, new_gen_sym_state, return_var = mangle(fn_ast, self._gen_sym.get_state())
+        self._gen_sym.set_state(new_gen_sym_state)
 
         inlined_body = []
         assert not node.kwargs and not node.starargs # TODO
@@ -404,7 +406,7 @@ class Optimizer(ast.NodeTransformer):
         if isinstance(inlined_code[-1], ast.Break): # single return
             inlined_body.extend(inlined_code[:-1])
         else: # multiple returns - wrap in "while"
-            while_var = new_var_name(self)
+            while_var = self._gen_sym('while')
             inlined_body.extend([
                     ast.Assign(
                         targets=[ast.Name(id=while_var, ctx=ast.Store())],
@@ -481,7 +483,7 @@ class Optimizer(ast.NodeTransformer):
         if literal_node is not None:
             return literal_node
         else:
-            var_name = new_var_name(self)
+            var_name = self._gen_sym('binding')
             self._constants[var_name] = value
             return ast.Name(id=var_name, ctx=ast.Load())
 
