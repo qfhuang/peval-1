@@ -5,6 +5,7 @@ import ast
 import operator
 
 import six
+import sys
 from six.moves import builtins
 
 from peval.gensym import GenSym
@@ -472,8 +473,11 @@ class Optimizer(ast.NodeTransformer):
             return ast.Num(value)
         elif type(value) in self.STRING_TYPES:
             return ast.Str(value)
-        elif value is False or value is True:
-            return ast.Name(id='True' if value else 'False', ctx=ast.Load())
+        elif value in (False, True, None):
+            if sys.version_info >= (3, 4, 0):
+                return ast.NameConstant(value=value)
+            else:
+                return ast.Name(id=repr(value), ctx=ast.Load())
 
     def _new_binding_node(self, value):
         ''' Generate unique variable name, add it to constants with given value,

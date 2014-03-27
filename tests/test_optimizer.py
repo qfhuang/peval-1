@@ -53,13 +53,16 @@ def test_propagation_str():
         'foo[:5]', dict(foo="bar"),
         '"bar"[:5]')
 
-def test_propagation_bool():
+def test_propagation_named_constant():
     check_opt(
         'foo', dict(foo=False),
         'False')
     check_opt(
         'foo', dict(foo=True),
         'True')
+    check_opt(
+        'foo', dict(foo=None),
+        'None')
 
 def test_propagation_subclass():
     ''' Test that constant propogation does not happen on primitive
