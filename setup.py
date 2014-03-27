@@ -14,7 +14,7 @@ setup(
     maintainer_email="bogdan@opanchuk.net",
     packages=find_packages(),
     install_requires=["six"],
-    tests_require=["nose", "meta"],
+    tests_require=["pytest", "meta"],
     platforms=["any"],
     keywords="AST partial optimization",
     classifiers=[
