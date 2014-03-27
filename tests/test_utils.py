@@ -8,9 +8,9 @@ from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
 if not six.PY2:
     from ast import arg
 
-from peval.utils import fn_to_ast, ast_equal, eval_ast, shift_source
+from peval.utils import fn_to_ast, eval_ast, shift_source
 
-from .utils import ast_to_source
+from .utils import ast_to_source, ast_equal, assert_ast_equal
 
 
 def test_fn_to_ast():
@@ -73,7 +73,7 @@ def test_compare_ast():
             [],
             *fn_returns)])
 
-    assert ast_equal(tree, expected_tree)
+    assert_ast_equal(tree, expected_tree)
     assert not ast_equal(tree, fn_to_ast(sample_fn2))
     assert not ast_equal(tree, fn_to_ast(sample_fn3))
 

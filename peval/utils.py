@@ -50,12 +50,6 @@ def eval_ast(tree, globals_=None):
     return locals_[tree.body[0].name]
 
 
-def ast_equal(tree1, tree2):
-    ''' Returns whether AST tree1 is equal to tree2
-    '''
-    return ast.dump(tree1) == ast.dump(tree2)
-
-
 def get_logger(name, debug=False):
     logger = logging.getLogger(name=name)
     level = logging.DEBUG if debug else logging.INFO

@@ -29,12 +29,18 @@ def ast_to_string(tree):
     return meta.asttools.str_ast(tree)
 
 
-def assert_ast_equal(test_ast, expected_ast, print_ast=False):
+def ast_equal(tree1, tree2):
+    ''' Returns whether AST tree1 is equal to tree2
+    '''
+    return ast.dump(tree1) == ast.dump(tree2)
+
+
+def assert_ast_equal(test_ast, expected_ast, print_ast=True):
     ''' Check that test_ast is equal to expected_ast,
     printing helpful error message if they are not equal
     '''
-    dump1, dump2 = ast.dump(test_ast), ast.dump(expected_ast)
-    if dump1 != dump2:
+    equal = ast_equal(test_ast, expected_ast)
+    if not equal:
         if print_ast:
             print('\n' + '=' * 40 + ' expected ast:\n{expected_ast}\n'\
                 '\ngot ast:\n{test_ast}\n'.format(
@@ -44,4 +50,5 @@ def assert_ast_equal(test_ast, expected_ast, print_ast=False):
               '\ngot source:\n{test_source}\n'.format(
                       expected_source=ast_to_source(expected_ast),
                       test_source=ast_to_source(test_ast)))
-    assert dump1 == dump2
+
+    assert equal
