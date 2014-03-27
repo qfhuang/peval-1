@@ -463,6 +463,8 @@ class Optimizer(ast.NodeTransformer):
             return known(node.n)
         elif isinstance(node, ast.Str):
             return known(node.s)
+        elif sys.version_info >= (3, 4, 0) and isinstance(node, ast.NameConstant):
+            return known(node.value)
         return False, None
 
     def _get_literal_node(self, value):
