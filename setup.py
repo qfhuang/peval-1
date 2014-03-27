@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="peval",
-    version="0.1",
+    version="0.1.0",
     description="Partial evaluation on AST level",
     long_description=open("README.rst").read(),
     url="https://github.com/Manticore/peval",
@@ -32,6 +32,5 @@ setup(
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Topic :: Software Development :: Libraries :: Python Modules",
-        "License :: OSI Approved :: MIT License",
     ],
 )
