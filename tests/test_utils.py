@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import six
+import sys
 
 import ast
 from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
@@ -17,7 +18,7 @@ def test_fn_to_ast():
     tree = fn_to_ast(sample_fn)
     tree_dump = ast.dump(tree, annotate_fields=False)
 
-    if six.PY2:
+    if sys.version_info < (3, 0, 0):
         expected_dump = (
             "Module([FunctionDef('sample_fn', "
             "arguments([Name('x', Param()), Name('y', Param()), "
@@ -26,7 +27,7 @@ def test_fn_to_ast():
             "[Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))], "
             "[Return(Subscript(Name('kw', Load()), "
             "Index(Str('zzz')), Load()))])], [])])")
-    else:
+    elif sys.version_info < (3, 4, 0):
         expected_dump = (
             "Module([FunctionDef('sample_fn', "
             "arguments([arg('x', None), arg('y', None), arg('foo', None)], "
@@ -35,6 +36,19 @@ def test_fn_to_ast():
             "[Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))], "
             "[Return(Subscript(Name('kw', Load()), "
             "Index(Str('zzz')), Load()))])], [], None)])")
+    elif sys.version_info < (4, 0, 0):
+        # In Py3.4 ast.arguments() fields changed again ---
+        # varargs became arg() objects too, instead of being just pairs of string and annotation.
+        expected_dump = (
+            "Module([FunctionDef('sample_fn', "
+            "arguments([arg('x', None), arg('y', None), arg('foo', None)], "
+            "None, [], [], arg('kw', None), [Str('bar')]), "
+            "[If(Compare(Name('foo', Load()), [Eq()], [Str('bar')]), "
+            "[Return(BinOp(Name('x', Load()), Add(), Name('y', Load())))], "
+            "[Return(Subscript(Name('kw', Load()), "
+            "Index(Str('zzz')), Load()))])], [], None)])")
+    else:
+        raise NotImplementedError
 
     assert tree_dump == expected_dump
 
@@ -42,14 +56,14 @@ def test_fn_to_ast():
 def test_compare_ast():
     tree = fn_to_ast(sample_fn)
 
-    if six.PY2:
+    if sys.version_info < (3, 0, 0):
         fn_args = arguments(
             args=[Name('x', Param()), Name('y', Param()), Name('foo', Param())],
             vararg=None,
             kwarg='kw',
             defaults=[Str('bar')])
         fn_returns = tuple()
-    else:
+    elif sys.version_info < (3, 4, 0):
         fn_args = arguments(
             args=[arg('x', None), arg('y', None), arg('foo', None)],
             vararg=None,
@@ -60,6 +74,20 @@ def test_compare_ast():
             defaults=[Str('bar')],
             kw_defaults=[])
         fn_returns = (None,) # return annotation
+    elif sys.version_info < (4, 0, 0):
+        # In Py3.4 ast.arguments() fields changed again ---
+        # varargs became arg() objects too, instead of being just pairs of string and annotation.
+        fn_args = arguments(
+            args=[arg('x', None), arg('y', None), arg('foo', None)],
+            vararg=None,
+            varargannotation=None,
+            kwonlyargs=[],
+            kwarg=arg('kw', None),
+            defaults=[Str('bar')],
+            kw_defaults=[])
+        fn_returns = (None,) # return annotation
+    else:
+        raise NotImplementedError
 
     expected_tree = Module([
         FunctionDef(
