@@ -1,38 +1,12 @@
 import ast
-import six
 
-
-def get_locals(tree):
-    ''' Return a set of all local variable names in ast tree
-    '''
-    visitor = LocalsVisitor()
-    visitor.visit(tree)
-    return visitor.get_locals()
-
-
-class LocalsVisitor(ast.NodeVisitor):
-    def __init__(self):
-        self._locals = set()
-        self._locals_ctx = (ast.Store, ast.Param) if six.PY2 else ast.Store
-        super(LocalsVisitor, self).__init__()
-
-    def visit_arg(self, node):
-        self.generic_visit(node)
-        self._locals.add(node.arg)
-
-    def visit_Name(self, node):
-        self.generic_visit(node)
-        if isinstance(node.ctx, self._locals_ctx):
-            self._locals.add(node.id)
-
-    def get_locals(self):
-        return self._locals
+from peval.symbol_finder import find_symbol_creations
 
 
 class GenSym:
 
     def __init__(self, tree=None):
-        self._names = get_locals(tree) if tree is not None else set()
+        self._names = find_symbol_creations(tree) if tree is not None else set()
         self._counter = 0
 
     def _gen_name(self, tag):

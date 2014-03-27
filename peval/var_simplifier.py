@@ -2,7 +2,7 @@
 
 import ast
 
-from peval.symbol_visitor import get_symbols
+from peval.symbol_finder import find_symbol_creations
 
 
 def remove_assignments(node_list):
@@ -51,7 +51,7 @@ def _can_remove_assignment(assign_node, node_list):
                     body=node_list[:idx] + node_list[idx+1:],
                     orelse=[])
             if all(n != assigned_name
-                    for n in get_symbols(dummy_node, (ast.Store, ))):
+                    for n in find_symbol_creations(dummy_node)):
                 return True, assigned_name, value_node
     return False, None, None
 
