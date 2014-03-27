@@ -1,4 +1,4 @@
-AST-PE is licensed under the MIT license:
+peval is licensed under the MIT license:
 
 Copyright (c) Konstantin Lopuhin (2012), Bogdan Opanchuk (2014)
 
