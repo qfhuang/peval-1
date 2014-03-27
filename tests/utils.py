@@ -1,8 +1,8 @@
 from __future__ import print_function
 
 import ast
-import unittest
 import warnings
+import difflib
 
 import meta.asttools
 
@@ -35,20 +35,35 @@ def ast_equal(tree1, tree2):
     return ast.dump(tree1) == ast.dump(tree2)
 
 
+def print_diff(test, expected):
+
+    print("\n" + "=" * 40 + " expected:\n\n" + expected)
+    print("\n" + "=" * 40 + " result:\n\n" + test)
+    print("\n")
+
+    expected_lines = expected.split('\n')
+    test_lines = test.split('\n')
+
+    for line in difflib.unified_diff(
+            expected_lines, test_lines,
+            fromfile='expected', tofile='test'):
+        print(line)
+
+
 def assert_ast_equal(test_ast, expected_ast, print_ast=True):
     ''' Check that test_ast is equal to expected_ast,
     printing helpful error message if they are not equal
     '''
     equal = ast_equal(test_ast, expected_ast)
     if not equal:
+
         if print_ast:
-            print('\n' + '=' * 40 + ' expected ast:\n{expected_ast}\n'\
-                '\ngot ast:\n{test_ast}\n'.format(
-                        expected_ast=ast_to_string(expected_ast),
-                        test_ast=ast_to_string(test_ast)))
-        print('\n' + '=' * 40 + ' expected source:\n{expected_source}\n'\
-              '\ngot source:\n{test_source}\n'.format(
-                      expected_source=ast_to_source(expected_ast),
-                      test_source=ast_to_source(test_ast)))
+            expected_ast_str = ast_to_string(expected_ast)
+            test_ast_str = ast_to_string(test_ast)
+            print_diff(test_ast_str, expected_ast_str)
+
+        expected_source = ast_to_source(expected_ast)
+        test_source = ast_to_source(test_ast)
+        print_diff(test_source, expected_source)
 
     assert equal
