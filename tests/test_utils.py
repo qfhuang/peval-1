@@ -120,8 +120,8 @@ def test_get_source():
     expected_source = shift_source(
         """
         def sample_fn(x, y, foo='bar', **kw):
-            if (foo == 'bar'):
-                return (x + y)
+            if foo == 'bar':
+                return x + y
             else:
                 return kw['zzz']
         """)
