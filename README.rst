@@ -2,6 +2,13 @@
 Partial evaluation on AST level
 ===============================
 
+.. image:: https://travis-ci.org/Manticore/peval.png?branch=master
+    :target: https://travis-ci.org/Manticore/peval
+
+.. image:: https://coveralls.io/repos/Manticore/peval/badge.png?branch=master
+    :target: https://coveralls.io/r/Manticore/peval
+
+
 This library allows you perform code specialization at run-time,
 turning this::
 
