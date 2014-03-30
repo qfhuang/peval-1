@@ -21,21 +21,26 @@ def get_fn_arg_id(fn_arg_node):
 def fn_to_ast(fn):
     ''' Return AST tree, parsed from fn
     '''
-    source = shift_source(inspect.getsource(fn))
+    source = unshift(inspect.getsource(fn))
     return ast.parse(source)
 
 
-def shift_source(source):
+def unshift(source):
     ''' Shift source to the left - so that it starts with zero indentation
     '''
-    source = source.rstrip()
-    if source.startswith('\n'):
-        source = source.lstrip('\n')
-    if source.startswith(' '):
-        n_spaces = len(re.match('^([ ]+)', source).group(0))
-        source = '\n'.join(line[n_spaces:] for line in source.split('\n'))
-    return source
-
+    source = source.rstrip("\n ").lstrip("\n")
+    indent = re.match(r"([ \t])*", source).group(0)
+    lines = source.split("\n")
+    shifted_lines = []
+    for line in lines:
+        line = line.rstrip()
+        if len(line) > 0:
+            if not line.startswith(indent):
+                raise ValueError("Inconsistent indent at line " + repr(line))
+            shifted_lines.append(line[len(indent):])
+        else:
+            shifted_lines.append(line)
+    return "\n".join(shifted_lines)
 
 
 def eval_ast(tree, globals_=None):

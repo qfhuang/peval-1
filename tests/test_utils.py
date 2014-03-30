@@ -9,7 +9,7 @@ from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
 if not six.PY2:
     from ast import arg
 
-from peval.utils import fn_to_ast, eval_ast, shift_source
+from peval.utils import fn_to_ast, eval_ast, unshift
 
 from .utils import ast_to_source, ast_equal, assert_ast_equal
 
@@ -117,7 +117,7 @@ def test_get_source():
     tree = fn_to_ast(sample_fn)
     source = ast_to_source(tree)
 
-    expected_source = shift_source(
+    expected_source = unshift(
         """
         def sample_fn(x, y, foo='bar', **kw):
             if foo == 'bar':

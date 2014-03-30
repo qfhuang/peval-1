@@ -5,7 +5,7 @@ import ast
 
 import six
 
-from peval.utils import shift_source, fn_to_ast
+from peval.utils import unshift, fn_to_ast
 from peval.optimizer import optimized_ast
 from peval.decorators import pure_function, inline
 
@@ -19,14 +19,14 @@ def check_opt(source, constants, expected_source=None,
     It :expected_new_bindings: is given, we check that they
     are among new bindings returned by optimizer.
     '''
-    source = shift_source(source)
+    source = unshift(source)
     if print_source:
         print(ast_to_string(ast.parse(source)))
 
     if expected_source is None:
         expected_source = source
     else:
-        expected_source = shift_source(expected_source)
+        expected_source = unshift(expected_source)
 
     ast_tree = ast.parse(source)
     new_ast, bindings = optimized_ast(ast_tree, constants)
