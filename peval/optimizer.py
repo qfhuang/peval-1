@@ -9,12 +9,9 @@ import sys
 from six.moves import builtins
 
 from peval.gensym import GenSym
-from peval.utils import get_logger, fn_to_ast, get_fn_arg_id
+from peval.utils import fn_to_ast, get_fn_arg_id
 from peval.mangler import mangle
 from peval.var_simplifier import remove_assignments
-
-
-logger = get_logger(__name__, debug=False)
 
 
 def optimized_ast(ast_tree, constants):
@@ -27,7 +24,6 @@ def optimized_ast(ast_tree, constants):
         try:
             new_ast = optimizer.visit(ast_tree)
         except Optimizer.Rollback:
-            logger.debug('rollback', exc_info=True)
             # we gathered more knowledge and want to try again
             continue
         else:
@@ -95,7 +91,6 @@ class Optimizer(ast.NodeTransformer):
         Also do some logging.
         '''
         prefix = '--' * self._depth
-        logger.debug('%s visit:\n%s', prefix, ast.dump(node))
         self._depth += 1
         # copy-paste from ast.py, added self._current_block handling
         block_fields = ['body', 'orelse']
@@ -128,7 +123,6 @@ class Optimizer(ast.NodeTransformer):
                     setattr(node, field, new_node)
         # end of copy-paste
         self._depth -= 1
-        logger.debug('%s result:\n%s', prefix, ast.dump(node))
         return node
 
     def visit_Module(self, node):

@@ -52,16 +52,3 @@ def eval_ast(tree, globals_=None):
     locals_ = {}
     eval(code_object, globals_, locals_)
     return locals_[tree.body[0].name]
-
-
-def get_logger(name, debug=False):
-    logger = logging.getLogger(name=name)
-    level = logging.DEBUG if debug else logging.INFO
-    logger.setLevel(level)
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    formatter = logging.Formatter('%(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    return logger
-
