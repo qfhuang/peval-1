@@ -1,6 +1,20 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+from setuptools.command.test import test as TestCommand
+
+
+class PyTest(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+
+    def run_tests(self):
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
 
 setup(
     name="peval",
@@ -15,6 +29,7 @@ setup(
     packages=find_packages(),
     install_requires=["six"],
     tests_require=["pytest", "astprint"],
+    cmdclass={'test': PyTest},
     platforms=["any"],
     keywords="AST partial optimization",
     classifiers=[
