@@ -7,3 +7,4 @@ peval.egg-info/
 env/
 build/
 dist/
+htmlcov/
