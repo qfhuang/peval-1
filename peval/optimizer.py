@@ -36,10 +36,6 @@ def optimized_ast(ast_tree, constants):
             return new_ast, all_bindings
 
 
-# FIXME - it operates on AST for now, but should operate on CFG instread,
-# will change it later, should be easyish???
-
-
 class Optimizer(ast.NodeTransformer):
     ''' Simplify AST, given information about what variables are known
     '''
@@ -102,7 +98,7 @@ class Optimizer(ast.NodeTransformer):
         logger.debug('%s visit:\n%s', prefix, ast.dump(node))
         self._depth += 1
         # copy-paste from ast.py, added self._current_block handling
-        block_fields = ['body', 'orelse'] # TODO more?
+        block_fields = ['body', 'orelse']
         for field, old_value in ast.iter_fields(node):
             old_value = getattr(node, field, None)
             if isinstance(old_value, list):
@@ -197,24 +193,24 @@ class Optimizer(ast.NodeTransformer):
             elif self._is_pure_fn(fn):
                 return self._fn_result_node_if_safe(fn, node)
         else:
-            assert not node.kwargs and not node.starargs # TODO
+            assert not node.kwargs and not node.starargs
             # check for mutations from function call:
             # if we don't know it's pure, it can mutate the arguments
             for arg_node in node.args:
                 if is_load_name(arg_node):
                     self._mark_mutated_node(arg_node)
                 else:
-                    # TODO - ???
+                    # The function argument is an expression.
+                    # Technically, this expression can return one of its arguments
+                    # and then the function will mutate it.
                     pass
             # if this a method call, it can also mutate "self"
             if isinstance(node.func, ast.Attribute):
-                # TODO - with proper dataflow analysis and getattr hanling
-                # this code should not be reached
                 obj_node, attr = node.func.value, node.func.attr
                 if is_load_name(obj_node):
                     self._mark_mutated_node(obj_node)
                 else:
-                    # TODO - well, it is hard, cause it can be something like
+                    # Well, it is hard, because it can be something like
                     # Fooo(x).transform() that also mutates x.
                     # Above this case will be handled by argument mutation
                     # and dataflow analysis, but maybe there are other cases?
@@ -259,7 +255,6 @@ class Optimizer(ast.NodeTransformer):
     def visit_Compare(self, node):
         ''' ==, >, etc. - evaluate only if all are know
         '''
-        # TODO - can evaluate if only some are known
         self.generic_visit(node)
         is_known, value = self._get_node_value_if_known(node.left)
         if not is_known:
@@ -306,8 +301,6 @@ class Optimizer(ast.NodeTransformer):
         else:
             operations[ast.Div] = operator.truediv
 
-        # FIXME - call l_value.__add__(r_value), etc.
-        # than we can get rid of NUMBER_TYPES check
         can_apply = lambda is_known, value: is_known and \
                 type(value) in self.NUMBER_TYPES
         if type(node.op) in operations:
@@ -365,7 +358,7 @@ class Optimizer(ast.NodeTransformer):
                 args.append(value)
             else:
                 return node
-        # TODO - cases listed in assert
+
         assert not node.kwargs and not node.keywords and not node.starargs
         try:
             fn_value = fn(*args)
@@ -387,19 +380,15 @@ class Optimizer(ast.NodeTransformer):
         self._gen_sym.set_state(new_gen_sym_state)
 
         inlined_body = []
-        assert not node.kwargs and not node.starargs # TODO
+        assert not node.kwargs and not node.starargs
         for callee_arg, fn_arg in zip(node.args, fn_ast.args.args):
             # setup mangled values before call
-            # TODO - if callee_arg is "simple" - literal or name,
-            # and is never assigned in inlined_body
-            # then do not make an assignment, just use it in inlined_body
             arg_id = get_fn_arg_id(fn_arg)
             inlined_body.append(ast.Assign(
                 targets=[ast.Name(arg_id, ast.Store())],
                 value=callee_arg))
             is_known, value = self._get_node_value_if_known(callee_arg)
             if is_known:
-                # TODO - check that mutations are detected
                 self._constants[arg_id] = value
 
         inlined_code = self._visit(fn_ast.body) # optimize inlined code
@@ -436,19 +425,15 @@ class Optimizer(ast.NodeTransformer):
         if fn in self.PURE_FUNCTIONS:
             return True
         else:
-            # TODO - implement decorator
-            if getattr(fn, '_peval_is_pure', False):
-                return True
-            # TODO - or analyze fn body
-            return False
+            return getattr(fn, '_peval_is_pure', False)
 
     def _is_inlined_fn(self, fn):
         ''' fn should be inlined
         '''
-        return bool(getattr(fn, '_peval_inline', False))
+        return getattr(fn, '_peval_inline', False)
 
     def _get_node_value_if_known(self, node):
-        ''' Return tuple of boolean(value is know), and value itself
+        ''' Return tuple of boolean(value is known), and value itself
         '''
         known = lambda x: (True, x)
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
@@ -456,7 +441,6 @@ class Optimizer(ast.NodeTransformer):
             if name in self._constants:
                 return known(self._constants[name])
             else:
-                # TODO - how to check builtin redefinitions?
                 if hasattr(builtins, name):
                     return known(getattr(builtins, name))
         elif isinstance(node, ast.Num):
@@ -499,7 +483,6 @@ class Optimizer(ast.NodeTransformer):
         '''
         assert is_load_name(node)
         self._mutated_nodes.add(node)
-        # TODO - propagate up the dataflow graph
         if node.id in self._constants:
             # obj can be mutated, and we can not assume we know it
             # so we have to rollback here

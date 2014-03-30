@@ -51,24 +51,12 @@ with ``peval.decorators.inline``. If some function or methods
 operates on your static input, you can benefit from marking it as pure
 using ``peval.decorators.pure_fn`` (if it is really pure).
 
-**TODO**
-Or you can make the library make all the bookkeeping for you, creating
-specialized versions and using them as meeded by the following decorator::
-
-    @peval.specialize_on('n', globals(), locals())
-    def power(x, n):
-        ...
-
-But in this case the arguments we specialize on must be hashable. It they
-are not, you will have to dispatch to specialized function yourself.
-
 Under the hood the library simplifies AST by performing usual
 compiler optimizations, using known variable values:
 
 * constant propagation
 * constant folding
 * dead-code elimination
-* loop unrolling (**TODO** - not yet)
 * function inlining
 
 But here this optimizations can really make a difference, because
@@ -76,8 +64,7 @@ your function can heavily depend on a known at specialization input,
 and so specialized function might have quite a different control flow,
 as in the ``power(x, n)`` example.
 
-Variable mutation and assigment is handled gracefully (**TODO**
-right now only in the simplest cases).
+Variable mutation and assigment is handled gracefully (in simple cases where no direct namespace manipulation is involved).
 
 Tests
 =====

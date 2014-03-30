@@ -232,13 +232,6 @@ def test_call_with_args():
             dict(__binding_1=[10, 20.0]))
 
 
-def test_call_with_starargs():
-    pass # TODO
-
-def test_call_with_kwargs():
-    pass #TODO
-
-
 def test_exception():
     ''' Test when called function raises an exception -
     we want it to raise it in specialized function
@@ -498,10 +491,6 @@ def test_mutation_of_fn_args():
         dict(x=object()))
 
 
-def test_leave_fn():
-    pass # TODO
-
-
 def test_arithmetic():
     check_opt('1 + 1', {}, '2')
     check_opt('1 + (1 * 67.0)', {}, '68.0')
@@ -647,22 +636,10 @@ def test_inlining_1():
         else:
             return x * power(x, n - 1)
 
-    # FIXME - cant use meta.asttools here - it is buggy
-    source = '''
-            @inline
-            def power(x, n):
-                if n == 0:
-                    return 1
-                elif n % 2 == 0:
-                    v = power(x, n // 2)
-                    return v * v
-                else:
-                    return x * power(x, n - 1)
-            '''
+    source = ast_to_source(fn_to_ast(power))
 
     check_opt(source,
         dict(n=1, power=power),
-        # TODO - we can do better!
         '''
         @inline
         def power(x, n):
@@ -670,7 +647,6 @@ def test_inlining_1():
         ''')
     check_opt(source,
         dict(n=5, power=power),
-        # TODO - we can do better!
         '''
         @inline
         def power(x, n):

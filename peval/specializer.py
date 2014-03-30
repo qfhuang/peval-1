@@ -27,8 +27,6 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
     constants = dict(global_bindings)
     fn_args = fn_ast.body[0].args
 
-    # TODO: need to make a copy of args and perform a proper processing
-    # using, for example, funcsigs.Signature.bind().
     assert not fn_args.vararg and not fn_args.kwarg
     if args:
         for arg, value in zip(fn_args.args[:len(args)], args):
@@ -43,5 +41,3 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
             constants[kwarg_name] = kwarg_value
             fn_args.args.remove(arg_by_id[kwarg_name])
     return optimized_ast(fn_ast, constants)
-
-

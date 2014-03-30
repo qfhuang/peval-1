@@ -22,7 +22,6 @@ def fn_to_ast(fn):
     ''' Return AST tree, parsed from fn
     '''
     source = shift_source(inspect.getsource(fn))
-    # FIXME - more general solution, here just a quick hack for tests
     return ast.parse(source)
 
 
