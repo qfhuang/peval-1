@@ -2,6 +2,7 @@
 from __future__ import print_function, division
 
 import ast
+import sys
 
 import six
 
@@ -35,7 +36,19 @@ def check_opt(source, constants, expected_source=None,
         for k in expected_new_bindings:
             if k not in bindings:
                 print('bindings:', bindings)
-            assert bindings[k] == expected_new_bindings[k]
+
+            binding = bindings[k]
+            expected_binding = expected_new_bindings[k]
+
+            # Python 3.2 defines equality for range objects incorrectly
+            # (namely, the result is always False).
+            # So we just test it manually.
+            if (sys.version_info[0] == 3 and sys.version_info[1] <= 2 and
+                    isinstance(expected_binding, range)):
+                assert type(binding) == type(expected_binding)
+                assert list(binding) == list(expected_binding)
+            else:
+                assert binding == expected_binding
 
 
 def test_propagation_int():
