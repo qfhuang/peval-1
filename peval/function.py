@@ -60,7 +60,7 @@ def eval_function_def_as_closure(function_def, globals_=None, closure_names=None
             [function_def] +
             [ast.Return(value=ast.Name(id=function_def.name, ctx=ast.Load()))]))
 
-    wrapper = eval_function_def(wrapper)
+    wrapper = eval_function_def(wrapper, globals_=globals_)
     return wrapper()
 
 
