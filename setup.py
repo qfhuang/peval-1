@@ -31,8 +31,14 @@ setup(
     maintainer="Bogdan Opanchuk",
     maintainer_email="bogdan@opanchuk.net",
     packages=find_packages(),
-    install_requires=["six"],
-    tests_require=["pytest", "astunparse"],
+    install_requires=[
+        "six",
+        "funcsigs",
+        ],
+    tests_require=[
+        "pytest",
+        "astunparse",
+        ],
     cmdclass={'test': PyTest},
     platforms=["any"],
     keywords="AST partial optimization",
