@@ -9,22 +9,6 @@ import logging
 import six
 
 
-def get_fn_arg_id(fn_arg_node):
-    # In Py2 the node for a function argument is a ``Name`` node.
-    # In Py3 it is a special ``arg`` node.
-    if six.PY2:
-        return fn_arg_node.id
-    else:
-        return fn_arg_node.arg
-
-
-def fn_to_ast(fn):
-    ''' Return AST tree, parsed from fn
-    '''
-    source = unshift(inspect.getsource(fn))
-    return ast.parse(source)
-
-
 def unshift(source):
     ''' Shift source to the left - so that it starts with zero indentation
     '''
@@ -43,12 +27,10 @@ def unshift(source):
     return "\n".join(shifted_lines)
 
 
-def eval_ast(tree, globals_=None):
-    ''' Evaluate AST tree, which sould contain only one root node
-    '''
-    assert isinstance(tree, ast.Module) and len(tree.body) == 1
-    ast.fix_missing_locations(tree)
-    code_object = compile(tree, '<nofile>', 'exec')
-    locals_ = {}
-    eval(code_object, globals_, locals_)
-    return locals_[tree.body[0].name]
+def get_fn_arg_id(fn_arg_node):
+    # In Py2 the node for a function argument is a ``Name`` node.
+    # In Py3 it is a special ``arg`` node.
+    if six.PY2:
+        return fn_arg_node.id
+    else:
+        return fn_arg_node.arg

@@ -9,7 +9,8 @@ import sys
 from six.moves import builtins
 
 from peval.gensym import GenSym
-from peval.utils import fn_to_ast, get_fn_arg_id
+from peval.function import Function
+from peval.utils import get_fn_arg_id
 from peval.mangler import mangle
 from peval.var_simplifier import remove_assignments
 
@@ -368,7 +369,7 @@ class Optimizer(ast.NodeTransformer):
         '''
         is_known, fn = self._get_node_value_if_known(node.func)
         assert is_known
-        fn_ast = fn_to_ast(fn).body[0]
+        fn_ast = Function.from_object(fn).tree
 
         new_fn_ast, new_gen_sym_state, return_var = mangle(fn_ast, self._gen_sym.get_state())
         self._gen_sym.set_state(new_gen_sym_state)

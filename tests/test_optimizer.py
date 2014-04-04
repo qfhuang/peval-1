@@ -6,9 +6,10 @@ import sys
 
 import six
 
-from peval.utils import unshift, fn_to_ast
+from peval.utils import unshift
 from peval.optimizer import optimized_ast
 from peval.decorators import pure_function, inline
+from peval.function import Function
 
 from .utils import assert_ast_equal, ast_to_string, ast_to_source
 
@@ -649,7 +650,7 @@ def test_inlining_1():
         else:
             return x * power(x, n - 1)
 
-    source = ast_to_source(fn_to_ast(power))
+    source = ast_to_source(Function.from_object(power).tree)
 
     check_opt(source,
         dict(n=1, power=power),

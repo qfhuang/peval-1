@@ -1,7 +1,9 @@
 # -*- encoding: utf-8 -*-
 import six
+import ast
 
-from peval.utils import fn_to_ast, eval_ast, get_fn_arg_id
+from peval.utils import get_fn_arg_id
+from peval.function import Function
 from peval.optimizer import optimized_ast
 
 
@@ -12,11 +14,12 @@ def specialized_fn(fn, globals_, locals_, *args, **kwargs):
     assert isinstance(globals_, dict) and isinstance(locals_, dict)
     globals_ = dict(globals_)
     globals_.update(locals_)
-    fn_ast = fn_to_ast(fn)
+    function = Function.from_object(fn)
     specialized_tree, bindings = specialized_ast(
-            fn_ast, globals_, *args, **kwargs)
+        function.tree, globals_, *args, **kwargs)
     globals_.update(bindings)
-    return eval_ast(specialized_tree, globals_=globals_)
+    new_function = function.replace(tree=specialized_tree.body[0], globals_=globals_)
+    return new_function.eval()
 
 
 def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
@@ -25,7 +28,7 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
     Here we just handle the args and kwargs of function defenition.
     '''
     constants = dict(global_bindings)
-    fn_args = fn_ast.body[0].args
+    fn_args = fn_ast.args
 
     assert not fn_args.vararg and not fn_args.kwarg
     if args:
@@ -40,4 +43,4 @@ def specialized_ast(fn_ast, global_bindings, *args, **kwargs):
         for kwarg_name, kwarg_value in six.iteritems(kwargs):
             constants[kwarg_name] = kwarg_value
             fn_args.args.remove(arg_by_id[kwarg_name])
-    return optimized_ast(fn_ast, constants)
+    return optimized_ast(ast.Module(body=[fn_ast]), constants)
