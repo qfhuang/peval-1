@@ -7,12 +7,12 @@ from peval.specializer import specialized_fn
 from peval.decorators import inline
 
 
-def check_partial_fn(base_fn, globals_, locals_, get_partial_kwargs, get_kwargs):
+def check_partial_fn(base_fn, get_partial_kwargs, get_kwargs):
     ''' Check that partial evaluation of base_fn with partial_args
     gives the same result on args_list
     as functools.partial(base_fn, partial_args)
     '''
-    fn = specialized_fn(base_fn, globals_, locals_, **get_partial_kwargs())
+    fn = specialized_fn(base_fn, **get_partial_kwargs())
     partial_fn = functools.partial(base_fn, **get_partial_kwargs())
     # call two times to check for possible side-effects
     assert_func_equal_on(partial_fn, fn, **get_kwargs()) # first
@@ -51,8 +51,8 @@ def test_args_handling():
     def args_kwargs(a, b, c=None):
         return 1.0 * a / b * (c or 3)
 
-    assert specialized_fn(args_kwargs, globals(), locals(), 1)(2) == 1.0 / 2 * 3
-    assert specialized_fn(args_kwargs, globals(), locals(), 1, 2, 1)() == 1.0 / 2 * 1
+    assert specialized_fn(args_kwargs, 1)(2) == 1.0 / 2 * 3
+    assert specialized_fn(args_kwargs, 1, 2, 1)() == 1.0 / 2 * 1
 
 
 def test_kwargs_handling():
@@ -60,8 +60,8 @@ def test_kwargs_handling():
     def args_kwargs(a, b, c=None):
         return 1.0 * a / b * (c or 3)
 
-    assert specialized_fn(args_kwargs, globals(), locals(), c=4)(1, 2) == 1.0 / 2 * 4
-    assert specialized_fn(args_kwargs, globals(), locals(), 2, c=4)(6) == 2.0 / 6 * 4
+    assert specialized_fn(args_kwargs, c=4)(1, 2) == 1.0 / 2 * 4
+    assert specialized_fn(args_kwargs, 2, c=4)(6) == 2.0 / 6 * 4
 
 
 def test_if_on_stupid_power():
@@ -81,8 +81,7 @@ def test_if_on_stupid_power():
 
     for n in ('foo', 0, 1, 2, 3):
         for x in [0, 1, 0.01, 5e10]:
-            check_partial_fn(stupid_power, globals(), locals(),
-                lambda : dict(n=n), lambda : {'x': x })
+            check_partial_fn(stupid_power, lambda: dict(n=n), lambda: {'x': x })
 
 
 def test_if_on_recursive_power():
@@ -101,8 +100,7 @@ def test_if_on_recursive_power():
 
     for n in ('foo', 0, 1, 2, 3):
         for x in [0, 1, 0.01, 5e10]:
-            check_partial_fn(power, globals(), locals(),
-                lambda : dict(n=n), lambda : {'x': x })
+            check_partial_fn(power, lambda: dict(n=n), lambda: {'x': x })
 
 
 def test_mutation_via_method():
@@ -111,8 +109,7 @@ def test_mutation_via_method():
         x.append('foo')
         return x + [y]
 
-    check_partial_fn(mutty, globals(), locals(),
-        lambda : dict(x=[1]), lambda : {'y': 2 })
+    check_partial_fn(mutty, lambda: dict(x=[1]), lambda: {'y': 2 })
 
 
 def smart_power(n, x):
