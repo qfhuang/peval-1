@@ -4,7 +4,7 @@ import ast
 import warnings
 import difflib
 
-import astprint
+import astunparse
 
 
 # ignore warnings about missing lineno and col_offset
@@ -14,7 +14,7 @@ warnings.filterwarnings('ignore', module='meta.asttools.visitors', lineno=47)
 def ast_to_source(tree):
     ''' Return python source of AST tree, as a string.
     '''
-    source = astprint.as_code(tree)
+    source = astunparse.unparse(tree)
 
     # trim newlines and trailing spaces --- some pretty printers add it
     source = "\n".join(line.rstrip() for line in source.split("\n"))
@@ -26,7 +26,7 @@ def ast_to_source(tree):
 def ast_to_string(tree):
     ''' Return pretty-printed AST, as a string.
     '''
-    return astprint.as_tree(tree)
+    return astunparse.dump(tree)
 
 
 def ast_equal(tree1, tree2):

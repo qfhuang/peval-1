@@ -29,7 +29,7 @@ setup(
     maintainer_email="bogdan@opanchuk.net",
     packages=find_packages(),
     install_requires=["six"],
-    tests_require=["pytest", "astprint"],
+    tests_require=["pytest", "astunparse"],
     cmdclass={'test': PyTest},
     platforms=["any"],
     keywords="AST partial optimization",
