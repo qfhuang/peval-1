@@ -8,7 +8,10 @@ from setuptools.command.test import test as TestCommand
 class PyTest(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
-        self.test_args = []
+        # Specifying the directory with tests explicitly
+        # to prevent Travis CI from running tests from dependencies' eggs
+        # (which are copied to the same directory).
+        self.test_args = ['-x', 'tests']
         self.test_suite = True
 
     def run_tests(self):
