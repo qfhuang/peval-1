@@ -76,11 +76,10 @@ def test_compare_ast():
         fn_returns = (None,) # return annotation
     elif sys.version_info < (4, 0, 0):
         # In Py3.4 ast.arguments() fields changed again ---
-        # varargs became arg() objects too, instead of being just pairs of string and annotation.
+        # vararg and kwarg became arg() objects too.
         fn_args = arguments(
             args=[arg('x', None), arg('y', None), arg('foo', None)],
             vararg=None,
-            varargannotation=None,
             kwonlyargs=[],
             kwarg=arg('kw', None),
             defaults=[Str('bar')],
