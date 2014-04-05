@@ -3,7 +3,7 @@ from __future__ import division
 
 import functools
 
-from peval.specializer import specialized_fn
+from peval import partial_apply
 from peval.decorators import inline
 
 
@@ -12,7 +12,7 @@ def check_partial_fn(base_fn, get_partial_kwargs, get_kwargs):
     gives the same result on args_list
     as functools.partial(base_fn, partial_args)
     '''
-    fn = specialized_fn(base_fn, **get_partial_kwargs())
+    fn = partial_apply(base_fn, **get_partial_kwargs())
     partial_fn = functools.partial(base_fn, **get_partial_kwargs())
     # call two times to check for possible side-effects
     assert_func_equal_on(partial_fn, fn, **get_kwargs()) # first
@@ -51,8 +51,8 @@ def test_args_handling():
     def args_kwargs(a, b, c=None):
         return 1.0 * a / b * (c or 3)
 
-    assert specialized_fn(args_kwargs, 1)(2) == 1.0 / 2 * 3
-    assert specialized_fn(args_kwargs, 1, 2, 1)() == 1.0 / 2 * 1
+    assert partial_apply(args_kwargs, 1)(2) == 1.0 / 2 * 3
+    assert partial_apply(args_kwargs, 1, 2, 1)() == 1.0 / 2 * 1
 
 
 def test_kwargs_handling():
@@ -60,8 +60,8 @@ def test_kwargs_handling():
     def args_kwargs(a, b, c=None):
         return 1.0 * a / b * (c or 3)
 
-    assert specialized_fn(args_kwargs, c=4)(1, 2) == 1.0 / 2 * 4
-    assert specialized_fn(args_kwargs, 2, c=4)(6) == 2.0 / 6 * 4
+    assert partial_apply(args_kwargs, c=4)(1, 2) == 1.0 / 2 * 4
+    assert partial_apply(args_kwargs, 2, c=4)(6) == 2.0 / 6 * 4
 
 
 def test_if_on_stupid_power():
