@@ -13,16 +13,13 @@ from peval.function import Function
 from .utils import assert_ast_equal, ast_to_string, ast_to_source
 
 
-def check_opt(source, constants, expected_source=None,
-        expected_new_bindings=None, print_source=False):
+def check_opt(source, constants, expected_source=None, expected_new_bindings=None):
     ''' Test that with given constants, optimized_ast transforms
     source to expected_source.
     It :expected_new_bindings: is given, we check that they
     are among new bindings returned by optimizer.
     '''
     source = unshift(source)
-    if print_source:
-        print(ast_to_string(ast.parse(source)))
 
     if expected_source is None:
         expected_source = source
