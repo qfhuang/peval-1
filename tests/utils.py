@@ -1,14 +1,9 @@
 from __future__ import print_function
 
 import ast
-import warnings
 import difflib
 
 import astunparse
-
-
-# ignore warnings about missing lineno and col_offset
-warnings.filterwarnings('ignore', module='meta.asttools.visitors', lineno=47)
 
 
 def ast_to_source(tree):
