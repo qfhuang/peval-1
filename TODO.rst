@@ -1,3 +1,4 @@
+* BUG (function): preserve __future__ imports when re-evaluating functions.
 * BUG (mangler): a function is inlined by replacing it with a ``while True`` loop and using variable assignment and ``break`` instead of ``return``.
   But if the ``return`` is inside another loop, this will lead to unexpected behavior.
 * BUG (optimizer): ``find_symbol_creations()`` must include nested ``FunctionDef`` in the list (since they introduce new symbols, just as stores).
