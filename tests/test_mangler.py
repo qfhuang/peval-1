@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 import ast
 
 from peval.gensym import GenSym
