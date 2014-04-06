@@ -186,3 +186,11 @@ def test_recursive_call():
     func = func.replace()
     func = func.eval()
     assert func(10) == 2
+
+
+def test_construct_from_eval():
+    # Test that the function returned from Function.eval()
+    # can be used to construct a new Function object.
+    func = Function.from_object(dummy_func).eval()
+    func2 = Function.from_object(func).eval()
+    assert func2(1, 2, c=10) == (1, 2, 10, 5)
