@@ -21,15 +21,12 @@ def eval_function_def(function_def, globals_=None):
     return locals_[function_def.name]
 
 
-def eval_function_def_as_closure(function_def, globals_=None, closure_names=None):
+def eval_function_def_as_closure(function_def, closure_names, globals_=None):
 
     if sys.version_info >= (3, 4):
         none = ast.NameConstant(value=None)
     else:
         none = ast.Name(id='None', ctx=ast.Load())
-
-    if closure_names is None:
-        closure_names = tuple()
 
     if sys.version_info < (3,):
         empty_args = ast.arguments(
@@ -195,27 +192,31 @@ class Function:
             new_tree, new_signature, new_globals, self.closure_names, self.closure_cells)
 
     def eval(self):
-        func_fake_closure = eval_function_def_as_closure(
-            self.tree, globals_=self.globals, closure_names=self.closure_names)
+        if len(self.closure_names) > 0:
+            func_fake_closure = eval_function_def_as_closure(
+                self.tree, self.closure_names, globals_=self.globals)
 
-        if len(self.closure_cells) == 0:
-            closure_cells = None
+            if len(self.closure_cells) == 0:
+                closure_cells = None
+            else:
+                closure_cells = self.closure_cells
+
+            func = FunctionType(
+                func_fake_closure.__code__,
+                self.globals,
+                func_fake_closure.__name__,
+                func_fake_closure.__defaults__,
+                closure_cells)
+
+            for attr in ('__kwdefaults__', '__annotations__'):
+                if hasattr(func_fake_closure, attr):
+                    setattr(func, attr, getattr(func_fake_closure, attr))
+
+            for attr in vars(func_fake_closure):
+                if not hasattr(func, attr):
+                    setattr(func, attr, getattr(func_fake_closure, attr))
         else:
-            closure_cells = self.closure_cells
-
-        func = FunctionType(
-            func_fake_closure.__code__,
-            self.globals,
-            func_fake_closure.__name__,
-            func_fake_closure.__defaults__,
-            closure_cells)
-        for attr in ('__kwdefaults__', '__annotations__'):
-            if hasattr(func_fake_closure, attr):
-                setattr(func, attr, getattr(func_fake_closure, attr))
-
-        for attr in vars(func_fake_closure):
-            if not hasattr(func, attr):
-                setattr(func, attr, getattr(func_fake_closure, attr))
+            func = eval_function_def(self.tree, globals_=self.globals)
 
         vars(func)['_peval_source'] = astunparse.unparse(self.tree)
 
@@ -227,11 +228,15 @@ class Function:
         if globals_ is None:
             globals_ = self.globals
 
-        func_fake_closure = eval_function_def_as_closure(
-            tree, globals_=globals_, closure_names=self.closure_names)
+        if len(self.closure_cells) > 0:
+            func_fake_closure = eval_function_def_as_closure(
+                tree, self.closure_names, globals_=globals_)
 
-        new_closure_names, _ = get_closure(func_fake_closure)
-        closure_dict = dict(zip(self.closure_names, self.closure_cells))
-        new_closure_cells = tuple(closure_dict[name] for name in new_closure_names)
+            new_closure_names, _ = get_closure(func_fake_closure)
+            closure_dict = dict(zip(self.closure_names, self.closure_cells))
+            new_closure_cells = tuple(closure_dict[name] for name in new_closure_names)
+        else:
+            new_closure_names = self.closure_names
+            new_closure_cells = self.closure_cells
 
         return Function(tree, self.signature, globals_, new_closure_names, new_closure_cells)

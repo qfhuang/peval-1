@@ -150,3 +150,33 @@ def test_restore_modified_closure():
 
     assert closure() == 4
     assert closure_ref() == 5
+
+
+def recursive_outer(x):
+    if x > 1:
+        return recursive_outer(x - 1)
+    else:
+        return x
+
+
+def make_recursive():
+    def recursive_inner(x):
+        if x > 2:
+            return recursive_inner(x - 1)
+        else:
+            return x
+    return recursive_inner
+
+
+def test_recursive_call():
+    # When evaluated inside a fake closure (to detect closure variables),
+    # the function name will be included in the list of closure variables.
+    func = Function.from_object(recursive_outer)
+    func = func.replace()
+    func = func.eval()
+    assert func(10) == 1
+
+    func = Function.from_object(make_recursive())
+    func = func.replace()
+    func = func.eval()
+    assert func(10) == 2
