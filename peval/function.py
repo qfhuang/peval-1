@@ -4,6 +4,7 @@ import inspect
 from types import FunctionType
 
 import funcsigs
+import astunparse
 
 from peval.utils import unshift
 
@@ -164,10 +165,16 @@ class Function:
     def from_object(cls, function):
         # DOC: Assuming here, that even if a decorator was applied to the function,
         # it is a "good" metadata-preserving decorator, e.g. created by ``wrapt``.
-        src = unshift(inspect.getsource(function))
+        if hasattr(function, '_peval_source'):
+            src = getattr(function, '_peval_source')
+        else:
+            src = unshift(inspect.getsource(function))
+
         tree = ast.parse(src).body[0]
+
         signature = funcsigs.signature(function)
         globals_ = function.__globals__
+        globals_[function.__name__] = function
         closure_names, closure_cells = get_closure(function)
 
         return cls(tree, signature, globals_, closure_names, closure_cells)
@@ -205,6 +212,12 @@ class Function:
         for attr in ('__kwdefaults__', '__annotations__'):
             if hasattr(func_fake_closure, attr):
                 setattr(func, attr, getattr(func_fake_closure, attr))
+
+        for attr in vars(func_fake_closure):
+            if not hasattr(func, attr):
+                setattr(func, attr, getattr(func_fake_closure, attr))
+
+        vars(func)['_peval_source'] = astunparse.unparse(self.tree)
 
         return func
 
