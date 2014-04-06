@@ -196,17 +196,12 @@ class Function:
             func_fake_closure = eval_function_def_as_closure(
                 self.tree, self.closure_names, globals_=self.globals)
 
-            if len(self.closure_cells) == 0:
-                closure_cells = None
-            else:
-                closure_cells = self.closure_cells
-
             func = FunctionType(
                 func_fake_closure.__code__,
                 self.globals,
                 func_fake_closure.__name__,
                 func_fake_closure.__defaults__,
-                closure_cells)
+                self.closure_cells)
 
             for attr in ('__kwdefaults__', '__annotations__'):
                 if hasattr(func_fake_closure, attr):
