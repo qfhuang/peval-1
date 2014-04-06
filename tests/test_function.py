@@ -194,3 +194,21 @@ def test_construct_from_eval():
     func = Function.from_object(dummy_func).eval()
     func2 = Function.from_object(func).eval()
     assert func2(1, 2, c=10) == (1, 2, 10, 5)
+
+
+# The decorator must be in the global namespace,
+# see Known Limitations in the docs.
+def tag(f):
+    vars(f)['_tag'] = True
+    return f
+
+
+def test_reapply_decorators():
+
+    @tag
+    def tagged(x):
+        return x
+
+    func = Function.from_object(tagged).eval()
+
+    assert '_tag' in vars(func) and vars(func)['_tag']

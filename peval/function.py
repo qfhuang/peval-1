@@ -206,10 +206,6 @@ class Function:
             for attr in ('__kwdefaults__', '__annotations__'):
                 if hasattr(func_fake_closure, attr):
                     setattr(func, attr, getattr(func_fake_closure, attr))
-
-            for attr in vars(func_fake_closure):
-                if not hasattr(func, attr):
-                    setattr(func, attr, getattr(func_fake_closure, attr))
         else:
             func = eval_function_def(self.tree, globals_=self.globals)
 
