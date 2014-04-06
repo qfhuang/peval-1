@@ -158,6 +158,14 @@ class Function:
         self.closure_cells = closure_cells if closure_cells is not None else tuple()
         self.signature = signature
 
+    def get_external_variables(self):
+        result = dict(self.globals)
+
+        for name, val in zip(self.closure_names, self.closure_cells):
+            result[name] = val.cell_contents
+
+        return result
+
     @classmethod
     def from_object(cls, function):
         # DOC: Assuming here, that even if a decorator was applied to the function,

@@ -16,7 +16,8 @@ def partial_apply(fn, *args, **kwds):
         bound_function = function
 
     new_module, bindings = optimized_ast(
-        ast.Module(body=[bound_function.tree]), bound_function.globals)
+        ast.Module(body=[bound_function.tree]),
+        bound_function.get_external_variables())
 
     new_tree = new_module.body[0]
     globals_ = dict(bound_function.globals)
