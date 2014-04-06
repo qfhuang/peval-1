@@ -170,7 +170,13 @@ def make_recursive():
 
 def test_recursive_call():
     # When evaluated inside a fake closure (to detect closure variables),
-    # the function name will be included in the list of closure variables.
+    # the function name will be included in the list of closure variables
+    # (if it is used in the body of the function).
+    # So if the function was not a closure to begin with,
+    # the corresponding cell will be missing.
+    # This tests checks that Function evaluates non-closure functions
+    # without a fake closure to prevent that.
+
     func = Function.from_object(recursive_outer)
     func = func.replace()
     func = func.eval()
