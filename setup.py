@@ -34,10 +34,10 @@ setup(
     install_requires=[
         "six",
         "funcsigs",
+        "astunparse",
         ],
     tests_require=[
         "pytest",
-        "astunparse",
         ],
     cmdclass={'test': PyTest},
     platforms=["any"],
