@@ -156,7 +156,7 @@ def filter_function_def(node, bound_argnames):
     return ast.FunctionDef(**params)
 
 
-class Function:
+class Function(object):
 
     def __init__(self, tree, signature, globals_, closure_names, closure_cells):
         self.tree = tree

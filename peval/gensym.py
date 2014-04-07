@@ -1,9 +1,7 @@
-import ast
-
 from peval.symbol_finder import find_symbol_creations
 
 
-class GenSym:
+class GenSym(object):
 
     def __init__(self, tree=None):
         self._names = find_symbol_creations(tree) if tree is not None else set()

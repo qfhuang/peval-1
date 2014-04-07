@@ -35,7 +35,8 @@ def optimized_ast(ast_tree, constants):
 class Optimizer(ast.NodeTransformer):
     ''' Simplify AST, given information about what variables are known
     '''
-    class Rollback(Exception): pass
+    class Rollback(Exception):
+        pass
 
     NUMBER_TYPES = six.integer_types + (float,)
     STRING_TYPES = six.string_types + (six.text_type, six.binary_type)
@@ -43,11 +44,11 @@ class Optimizer(ast.NodeTransformer):
     # build-in functions that return the same result for the same arguments
     # and do not change their arguments or global environment
     PURE_FUNCTIONS = (
-        abs, divmod,  staticmethod,
+        abs, divmod, staticmethod,
         all, enumerate, int, ord, str,
-        any,  isinstance, pow, sum,
+        any, isinstance, pow, sum,
         issubclass, super,
-        bin,  iter, property, tuple,
+        bin, iter, property, tuple,
         bool, filter, len, range, type,
         bytearray, float, list,
         callable, format,
@@ -71,7 +72,6 @@ class Optimizer(ast.NodeTransformer):
         '''
         self._gen_sym = gen_sym
         self._constants = dict(constants)
-        self._depth = 0
         self._mutated_nodes = set()
         self._current_block = None # None, or a list of nodes that correspond
         # to currently visited code block
@@ -90,8 +90,6 @@ class Optimizer(ast.NodeTransformer):
         (e.g. when inlining functions).
         Also do some logging.
         '''
-        prefix = '--' * self._depth
-        self._depth += 1
         # copy-paste from ast.py, added self._current_block handling
         block_fields = ['body', 'orelse']
         for field, old_value in ast.iter_fields(node):
@@ -122,7 +120,6 @@ class Optimizer(ast.NodeTransformer):
                 else:
                     setattr(node, field, new_node)
         # end of copy-paste
-        self._depth -= 1
         return node
 
     def visit_Module(self, node):
@@ -200,7 +197,7 @@ class Optimizer(ast.NodeTransformer):
                     pass
             # if this a method call, it can also mutate "self"
             if isinstance(node.func, ast.Attribute):
-                obj_node, attr = node.func.value, node.func.attr
+                obj_node = node.func.value
                 if is_load_name(obj_node):
                     self._mark_mutated_node(obj_node)
                 else:
@@ -261,12 +258,12 @@ class Optimizer(ast.NodeTransformer):
             value_list.append(value)
         for a, b, op in zip(value_list, value_list[1:], node.ops):
             result = {
-                    ast.Eq: lambda : a == b,
-                    ast.Lt: lambda : a < b,
-                    ast.Gt: lambda : a > b,
-                    ast.GtE: lambda : a >= b,
-                    ast.LtE: lambda : a <= b,
-                    ast.NotEq: lambda : a != b,
+                    ast.Eq: lambda: a == b,
+                    ast.Lt: lambda: a < b,
+                    ast.Gt: lambda: a > b,
+                    ast.GtE: lambda: a >= b,
+                    ast.LtE: lambda: a <= b,
+                    ast.NotEq: lambda: a != b,
                     }[type(op)]()
             if not result:
                 return self._new_binding_node(False)
