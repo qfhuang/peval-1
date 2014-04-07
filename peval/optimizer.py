@@ -375,7 +375,7 @@ class Optimizer(ast.NodeTransformer):
 
         inlined_body = []
         assert not node.kwargs and not node.starargs
-        for callee_arg, fn_arg in zip(node.args, fn_ast.args.args):
+        for callee_arg, fn_arg in zip(node.args, new_fn_ast.args.args):
             # setup mangled values before call
             arg_id = get_fn_arg_id(fn_arg)
             inlined_body.append(ast.Assign(
@@ -385,7 +385,7 @@ class Optimizer(ast.NodeTransformer):
             if is_known:
                 self._constants[arg_id] = value
 
-        inlined_code = self._visit(fn_ast.body) # optimize inlined code
+        inlined_code = self._visit(new_fn_ast.body) # optimize inlined code
 
         if isinstance(inlined_code[-1], ast.Break): # single return
             inlined_body.extend(inlined_code[:-1])

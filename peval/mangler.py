@@ -1,4 +1,5 @@
 import ast
+import copy
 
 from peval.symbol_finder import find_symbol_creations
 from peval.gensym import GenSym
@@ -56,9 +57,10 @@ class Mangler(ast.NodeTransformer):
 
 
 def mangle(node, gen_sym_state):
-    locals_ = find_symbol_creations(node)
+    new_node = copy.deepcopy(node)
+    locals_ = find_symbol_creations(new_node)
     gen_sym = GenSym.from_state(gen_sym_state)
     mangler = Mangler(locals_, gen_sym)
-    new_node = mangler.visit(node)
+    mangler.visit(new_node)
     return_var = mangler.get_return_var()
     return new_node, gen_sym.get_state(), return_var
