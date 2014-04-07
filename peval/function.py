@@ -7,10 +7,14 @@ from types import FunctionType
 import funcsigs
 import astunparse
 
-from peval.utils import unshift
+from peval.utils import unshift, get_fn_arg_id
 
 
 def eval_function_def(function_def, globals_=None):
+    """
+    Evaluates an AST of a function definition with an optional dictionary of globals.
+    Returns a callable function (a ``types.FunctionType`` object).
+    """
 
     assert isinstance(function_def, ast.FunctionDef)
 
@@ -29,11 +33,37 @@ def eval_function_def(function_def, globals_=None):
 
 
 def eval_function_def_as_closure(function_def, closure_names, globals_=None):
+    """
+    Evaluates an AST of a function definition inside a closure with the variables
+    from the list of ``closure_names`` set to ``None``,
+    and an optional dictionary of globals.
+    Returns a callable function (a ``types.FunctionType`` object).
+
+    .. warning::
+
+        Before the returned function can be actually called, the "fake" closure cells
+        (filled with ``None``) must be substituted by actual closure cells
+        that will be used during the call.
+    """
+
+    assert isinstance(function_def, ast.FunctionDef)
 
     if sys.version_info >= (3, 4):
         none = ast.NameConstant(value=None)
     else:
         none = ast.Name(id='None', ctx=ast.Load())
+
+    # We can't possibly recreate ASTs of existing closure variables
+    # (because all we have are their values).
+    # So we create fake closure variables for the function to attach to,
+    # and then substitute the closure cells with the ones obtained from
+    # the "prototype" of this function (a ``types.FunctionType`` object
+    # from which this tree was extracted).
+    fake_closure_vars = [
+        ast.Assign(
+            targets=[ast.Name(id=name, ctx=ast.Store())],
+            value=none)
+        for name in closure_names]
 
     if sys.version_info < (3,):
         empty_args = ast.arguments(
@@ -50,14 +80,8 @@ def eval_function_def_as_closure(function_def, closure_names, globals_=None):
             defaults=[],
             kw_defaults=[])
 
-    fake_closure_vars = [
-        ast.Assign(
-            targets=[ast.Name(id=name, ctx=ast.Store())],
-            value=none)
-        for name in closure_names]
-
-    wrapper = ast.FunctionDef(
-        name='__wrapper',
+    wrapper_def = ast.FunctionDef(
+        name='__peval_wrapper',
         args=empty_args,
         decorator_list=[],
         body=(
@@ -65,11 +89,18 @@ def eval_function_def_as_closure(function_def, closure_names, globals_=None):
             [function_def] +
             [ast.Return(value=ast.Name(id=function_def.name, ctx=ast.Load()))]))
 
-    wrapper = eval_function_def(wrapper, globals_=globals_)
+    wrapper = eval_function_def(wrapper_def, globals_=globals_)
     return wrapper()
 
 
 def get_closure(func):
+    """
+    Extracts names and values of closure variables from a function.
+    Returns a tuple ``(names, cells)``, where ``names`` is a tuple of strings
+    and ``cells`` is a tuple of ``Cell`` objects (containing the actual value
+    in the attribute ``cell_contents``).
+    """
+    # Can't use OrderedDict here because we want to support Py2.6.
     freevars = func.__code__.co_freevars
     if hasattr(func, 'func_closure'):
         # For Py<=2.6 and PyPy2
@@ -80,14 +111,17 @@ def get_closure(func):
 
 
 def filter_arglist(args, defaults, bound_argnames):
-
-    get_arg_name = lambda arg: arg.id if sys.version_info < (3,) else arg.arg
-
+    """
+    Filters a list of function argument nodes (``ast.Name`` in Py2, ``ast.arg`` in Py3)
+    and corresponding defaults to exclude all arguments with the names
+    present in ``bound_arguments``.
+    Returns a pair of new arguments and defaults.
+    """
     new_args = []
     new_defaults = []
     required_args = len(args) - len(defaults)
     for i, arg in enumerate(args):
-        if get_arg_name(arg) not in bound_argnames:
+        if get_fn_arg_id(arg) not in bound_argnames:
             new_args.append(arg)
             if i >= required_args:
                 new_defaults.append(defaults[i - required_args])
@@ -95,63 +129,63 @@ def filter_arglist(args, defaults, bound_argnames):
     return new_args, new_defaults
 
 
-def filter_arguments(node, bound_argnames):
+def filter_arguments(arguments, bound_argnames):
+    """
+    Filters a node containing function arguments (an ``ast.arguments`` object)
+    to exclude all arguments with the names present in ``bound_arguments``.
+    Returns the new ``ast.arguments`` node.
+    """
 
-    assert isinstance(node, ast.arguments)
+    assert isinstance(arguments, ast.arguments)
 
-    new_params = dict(ast.iter_fields(node))
+    new_params = dict(ast.iter_fields(arguments))
 
     new_params['args'], new_params['defaults'] = filter_arglist(
-        node.args, node.defaults, bound_argnames)
+        arguments.args, arguments.defaults, bound_argnames)
 
     if sys.version_info >= (3,):
         new_params['kwonlyargs'], new_params['kw_defaults'] = filter_arglist(
-            node.kwonlyargs, node.kw_defaults, bound_argnames)
+            arguments.kwonlyargs, arguments.kw_defaults, bound_argnames)
 
     if sys.version_info < (3, 4):
-        vararg_name = node.vararg
-        kwarg_name = node.kwarg
+        vararg_name = arguments.vararg
+        kwarg_name = arguments.kwarg
     else:
-        vararg_name = node.vararg.arg if node.vararg is not None else None
-        kwarg_name = node.kwarg.arg if node.kwarg is not None else None
+        vararg_name = arguments.vararg.arg if arguments.vararg is not None else None
+        kwarg_name = arguments.kwarg.arg if arguments.kwarg is not None else None
 
     if vararg_name is not None and vararg_name in bound_argnames:
         new_params['vararg'] = None
-        if sys.version_info < (3, 4):
+        if sys.version_info >= (3,) and sys.version_info < (3, 4):
             new_params['varargannotation'] = None
 
     if kwarg_name is not None and kwarg_name in bound_argnames:
         new_params['kwarg'] = None
-        if sys.version_info < (3, 4):
+        if sys.version_info >= (3,) and sys.version_info < (3, 4):
             new_params['kwargannotation'] = None
 
     return ast.arguments(**new_params)
 
 
-def filter_function_def(node, bound_argnames):
+def filter_function_def(function_def, bound_argnames):
+    """
+    Filters a node containing a function definition (an ``ast.FunctionDef`` object)
+    to exclude all arguments with the names present in ``bound_arguments``.
+    Returns the new ``ast.arguments`` node.
+    """
 
-    assert isinstance(node, ast.FunctionDef)
+    assert isinstance(function_def, ast.FunctionDef)
 
-    # DOC: potential problem when the same symbol is used for an argument and for a decorator.
-    # Since we are adding the fixed argument to globals, it will replace the value
-    # of the decorator leading to errors.
-    # On the other hand, this situation should be really rare since it's a bad coding style
-    # (and easily noticeable).
-    # We can just assert it.
-
-    # names = find_loads(node.decorators)
-    # assert not names.intersects(argnames)
-
-    new_args = filter_arguments(node.args, bound_argnames)
+    new_args = filter_arguments(function_def.args, bound_argnames)
 
     params = dict(
-        name=node.name,
+        name=function_def.name,
         args=new_args,
-        body=node.body,
-        decorator_list=node.decorator_list)
+        body=function_def.body,
+        decorator_list=function_def.decorator_list)
     if sys.version_info >= (3,):
         params.update(dict(
-            returns=node.returns))
+            returns=function_def.returns))
 
     return ast.FunctionDef(**params)
 
@@ -195,6 +229,16 @@ class Function(object):
         bargs = self.signature.bind_partial(*args, **kwds)
 
         new_tree = filter_function_def(self.tree, set(bargs.arguments.keys()))
+
+        # DOC: potential problem when the same symbol is used for an argument and for a decorator.
+        # Since we are adding the fixed argument to globals, it will replace the value
+        # of the decorator leading to errors.
+        # On the other hand, this situation should be really rare since it's a bad coding style
+        # (and easily noticeable).
+        # We can just assert it.
+
+        # names = find_loads(function_def.decorators)
+        # assert not names.intersects(argnames)
 
         new_globals = dict(self.globals)
         new_globals.update(bargs.arguments)
