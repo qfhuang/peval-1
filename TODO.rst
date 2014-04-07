@@ -13,6 +13,7 @@
   But this only applies to "bad" objects, because not taking a copy of a mutable argument and then mutate it silently is really error-prone.
 * ?BUG (optimizer): do we need to check for builtin redefinitions?
 * ?BUG (optimizer): ``Optimizer._mark_mutated_node()`` needs to somehow propagated that information up the data flow graph.
+* BUG (function): when PyPy bug 1729 is fixed, in ``eval_function_def`` deepcopy ``function_def`` before ``ast.fix_missing_locations``.
 
 * FEATURE (optimizer): in ``Optimizer.visit_BinOp``, we can apply binary operations to all objects that support them, not only to NUMBER_TYPES.
 * ?FEATURE (optimizer): base optimizations on the data flow graph, not on AST --- it is a higher level abstraction and has less details insignificant for the optimizer.

@@ -1,5 +1,6 @@
 import sys
 import ast
+import copy
 import inspect
 from types import FunctionType
 
@@ -13,8 +14,14 @@ def eval_function_def(function_def, globals_=None):
 
     assert isinstance(function_def, ast.FunctionDef)
 
-    module = ast.Module(body=[function_def])
-    ast.fix_missing_locations(module)
+    # Should be done after deepcopy() (since it mutates `function_def`),
+    # but it does not work in PyPy because of bug 1729.
+    ast.fix_missing_locations(function_def)
+
+    # Need to copy `function_def` because in PyPy `compile()` may mutate the tree
+    # (see PyPy bug 1728).
+    module = ast.Module(body=[copy.deepcopy(function_def)])
+
     code_object = compile(module, '<nofile>', 'exec')
     locals_ = {}
     eval(code_object, globals_, locals_)
