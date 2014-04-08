@@ -54,14 +54,26 @@ class SymbolUsageFinder(ast.NodeVisitor):
 def find_symbol_creations(tree):
     ''' Return a set of all local variable names in ast tree
     '''
-    visitor = SymbolCreationFinder()
-    visitor.visit(tree)
-    return visitor.get_locals()
+    if isinstance(tree, ast.AST):
+        visitor = SymbolCreationFinder()
+        visitor.visit(tree)
+        return visitor.get_locals()
+    else:
+        result = set()
+        for node in tree:
+            result.update(find_symbol_creations(node))
+        return result
 
 
 def find_symbol_usages(tree):
     ''' Return a set of all variables used in ast tree
     '''
-    visitor = SymbolUsageFinder()
-    visitor.visit(tree)
-    return visitor.get_locals()
+    if isinstance(tree, ast.AST):
+        visitor = SymbolUsageFinder()
+        visitor.visit(tree)
+        return visitor.get_locals()
+    else:
+        result = set()
+        for node in tree:
+            result.update(find_symbol_usages(node))
+        return result

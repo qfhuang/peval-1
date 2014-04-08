@@ -256,9 +256,7 @@ class Function(object):
         # being bound, and somewhere inside a decorator.
         # Since we are adding the bound argument to globals,
         # they will replace the value the decorator used, leading to errors.
-        decorator_symbols = set()
-        for decorator in self.tree.decorator_list:
-            decorator_symbols.update(find_symbol_usages(decorator))
+        decorator_symbols = find_symbol_usages(self.tree.decorator_list)
         assert decorator_symbols.isdisjoint(bound_argnames)
 
         new_globals = dict(self.globals)
