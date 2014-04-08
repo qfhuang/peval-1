@@ -402,11 +402,12 @@ class Optimizer(ast.NodeTransformer):
                         orelse=[])
                     ])
 
-        all_nodes = inlined_body + \
-                [ast.Name(id=return_var, ctx=ast.Load())]
-        remove_assignments(all_nodes)
+        # Add the final node with just the return var so that remove_assignments()
+        # could replace it to whatever return var was simplified to.
+        nodes = inlined_body + [ast.Name(id=return_var, ctx=ast.Load())]
+        new_nodes = remove_assignments(nodes)
 
-        return all_nodes[:-1], all_nodes[-1]
+        return new_nodes[:-1], new_nodes[-1]
 
 
     def _is_pure_fn(self, fn):
