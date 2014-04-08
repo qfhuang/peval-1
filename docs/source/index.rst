@@ -4,6 +4,7 @@ Partial evaluation of Python code
 
 Under construction.
 
+.. _known-limitations:
 
 Known limitations
 =================
@@ -43,6 +44,20 @@ Decorators
   This may lead to unexpected behavior if the decorators have side effects, or rely on some particular function arguments (which may disappear after partial application).
 
   **Workaround:** Make sure that the second application of the decorators does not lead to undesired consequences, and that they can handle changes in the function signature.
+
+* **Problem:** Consider a case when a decorator uses the same symbol as one of the function arguments:
+
+  ::
+
+      @foo
+      def test(foo, bar):
+          return foo, bar
+
+  If we bind the ``foo`` argument to some value, this value will be added to the globals and, therefore, will replace the value used for the ``foo`` decorator.
+  Consequently, the evaluation of such partially applied function will fail
+  (in fact, an assertion within ``Function.bind_partial()`` will fire before that).
+
+  **Workaround:** Avoid using the same symbols in function argument lists and in the decorator declarations applied to these functions (which is usually a good general coding practice).
 
 
 ********

@@ -8,6 +8,7 @@ import funcsigs
 import astunparse
 
 from peval.utils import unshift, get_fn_arg_id
+from peval.symbol_finder import find_symbol_usages
 
 
 def eval_function_def(function_def, globals_=None):
@@ -191,6 +192,10 @@ def filter_function_def(function_def, bound_argnames):
 
 
 class Function(object):
+    """
+    A wrapper for functions providing transformations to and from AST
+    and simplifying operations with associated global and closure variables.
+    """
 
     def __init__(self, tree, signature, globals_, closure_names, closure_cells):
         self.tree = tree
@@ -200,6 +205,11 @@ class Function(object):
         self.signature = signature
 
     def get_external_variables(self):
+        """
+        Returns a unified dictionary of external variables for this function
+        (both globals and closure variables).
+        """
+
         result = dict(self.globals)
 
         for name, val in zip(self.closure_names, self.closure_cells):
@@ -209,9 +219,14 @@ class Function(object):
 
     @classmethod
     def from_object(cls, function):
-        # DOC: Assuming here, that even if a decorator was applied to the function,
-        # it is a "good" metadata-preserving decorator, e.g. created by ``wrapt``.
+        """
+        Creates a ``Function`` object from an evaluated function.
+        See :ref:`Known Limitations <known-limitations>` section for
+        details about restrictions on the function.
+        """
+
         if hasattr(function, '_peval_source'):
+            # An attribute created in ``Function.eval()``
             src = getattr(function, '_peval_source')
         else:
             src = unshift(inspect.getsource(function))
@@ -226,19 +241,25 @@ class Function(object):
         return cls(tree, signature, globals_, closure_names, closure_cells)
 
     def bind_partial(self, *args, **kwds):
+        """
+        Binds the provided positional and keyword arguments
+        and returns a new ``Function`` object with an updated signature.
+        """
+
         bargs = self.signature.bind_partial(*args, **kwds)
 
-        new_tree = filter_function_def(self.tree, set(bargs.arguments.keys()))
+        # Remove the bound arguments from the function AST
+        bound_argnames = set(bargs.arguments.keys())
+        new_tree = filter_function_def(self.tree, bound_argnames)
 
-        # DOC: potential problem when the same symbol is used for an argument and for a decorator.
-        # Since we are adding the fixed argument to globals, it will replace the value
-        # of the decorator leading to errors.
-        # On the other hand, this situation should be really rare since it's a bad coding style
-        # (and easily noticeable).
-        # We can just assert it.
-
-        # names = find_loads(function_def.decorators)
-        # assert not names.intersects(argnames)
+        # Check for cases when the same symbol is used for an argument
+        # being bound, and somewhere inside a decorator.
+        # Since we are adding the bound argument to globals,
+        # they will replace the value the decorator used, leading to errors.
+        decorator_symbols = set()
+        for decorator in self.tree.decorator_list:
+            decorator_symbols.update(find_symbol_usages(decorator))
+        assert decorator_symbols.isdisjoint(bound_argnames)
 
         new_globals = dict(self.globals)
         new_globals.update(bargs.arguments)
@@ -251,6 +272,9 @@ class Function(object):
             new_tree, new_signature, new_globals, self.closure_names, self.closure_cells)
 
     def eval(self):
+        """
+        Evaluates and returns a callable function.
+        """
         if len(self.closure_names) > 0:
             func_fake_closure = eval_function_def_as_closure(
                 self.tree, self.closure_names, globals_=self.globals)
@@ -268,11 +292,24 @@ class Function(object):
         else:
             func = eval_function_def(self.tree, globals_=self.globals)
 
+        # A regular function contains a file name and a line number
+        # pointing to the location of its source.
+        # I we wanted to trick ``inspect.getsource()`` into working with
+        # this newly generated function, we could create a temporary file and write it there.
+        # But it leads to other complications, and is unnecessary at this stage.
+        # So we just save the source into an attribute for ``Function.from_object()``
+        # to discover if we ever want to create a new ``Function`` object
+        # out of this function.
         vars(func)['_peval_source'] = astunparse.unparse(self.tree)
 
         return func
 
     def replace(self, tree=None, globals_=None):
+        """
+        Replaces the AST and/or globals and returns a new ``Function`` object.
+        If some closure variables are not used by a new tree,
+        adjusts the closure cells accordingly.
+        """
         if tree is None:
             tree = self.tree
         if globals_ is None:
