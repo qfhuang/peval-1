@@ -2,12 +2,12 @@ import ast
 import six
 
 
-class LocalsVisitor(ast.NodeVisitor):
+class SymbolCreationFinder(ast.NodeVisitor):
 
     def __init__(self):
         self._locals = set()
         self._ctxs = (ast.Store, ast.Param) if six.PY2 else ast.Store
-        super(LocalsVisitor, self).__init__()
+        super(SymbolCreationFinder, self).__init__()
 
     def visit_arg(self, node):
         self.generic_visit(node)
@@ -36,9 +36,32 @@ class LocalsVisitor(ast.NodeVisitor):
         return self._locals
 
 
+class SymbolUsageFinder(ast.NodeVisitor):
+
+    def __init__(self):
+        self._locals = set()
+        super(SymbolUsageFinder, self).__init__()
+
+    def visit_Name(self, node):
+        self.generic_visit(node)
+        if isinstance(node.ctx, ast.Load):
+            self._locals.add(node.id)
+
+    def get_locals(self):
+        return self._locals
+
+
 def find_symbol_creations(tree):
     ''' Return a set of all local variable names in ast tree
     '''
-    visitor = LocalsVisitor()
+    visitor = SymbolCreationFinder()
+    visitor.visit(tree)
+    return visitor.get_locals()
+
+
+def find_symbol_usages(tree):
+    ''' Return a set of all variables used in ast tree
+    '''
+    visitor = SymbolUsageFinder()
     visitor.visit(tree)
     return visitor.get_locals()
