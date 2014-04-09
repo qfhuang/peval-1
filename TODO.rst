@@ -15,7 +15,9 @@
 * ?BUG (optimizer): do we need to check for builtin redefinitions?
 * ?BUG (optimizer): ``Optimizer._mark_mutated_node()`` needs to somehow propagated that information up the data flow graph.
 * BUG (function): when PyPy bug 1729 is fixed, in ``eval_function_def`` deepcopy ``function_def`` before ``ast.fix_missing_locations``.
+* BUG (inline): when inlining a function, we must mangle the globals too, in case it uses a different set from what the parent function uses.
 
+* FEATURE: write a custom base visitor that will allow us to avoid doing ``deepcopy`` of the whole trees.
 * FEATURE (optimizer): in ``Optimizer.visit_BinOp``, we can apply binary operations to all objects that support them, not only to NUMBER_TYPES.
 * ?FEATURE (optimizer): base optimizations on the data flow graph, not on AST --- it is a higher level abstraction and has less details insignificant for the optimizer.
 * FEATURE: add partial application for varargs and kwargs (see ``assert`` in ``Optimizer._fn_result_node_if_safe()``).
