@@ -2,9 +2,35 @@ import ast
 import copy
 
 from peval.symbol_finder import find_symbol_creations
+from peval.visitor import Visitor
 
 
-def remove_assignments(node_list):
+def remove_assignments(tree, _):
+    tree = copy.deepcopy(tree)
+    visitor = Simplifier()
+    visitor.visit(tree)
+    return tree, _
+
+
+def replace_node(node, **kwds):
+    new_kwds = dict(ast.iter_fields(node))
+    new_kwds.update(kwds)
+    return type(node)(**new_kwds)
+
+
+class Simplifier(Visitor):
+    ''' Simplify AST, given information about what variables are known
+    '''
+    def visit_FunctionDef(self, node):
+        ''' Make a call, if it is a pure function,
+        and handle mutations otherwise.
+        Inline function if it is marked with @inline.
+        '''
+        self.generic_visit(node)
+        return replace_node(node, body=_remove_assignments(node.body))
+
+
+def _remove_assignments(node_list):
     ''' Remove one assigment at a time, touching only top level block
     (i.e. not going inside while, if, for etc)
     '''

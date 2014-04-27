@@ -107,9 +107,9 @@ def test_complex_return():
             if a:
                 b = a * 10
                 __mangled_1 = x - 3
-                __while_5 = True
-                while __while_5:
-                    __while_5 = False
+                __while_1 = True
+                while __while_1:
+                    __while_1 = False
                     __mangled_2 = []
                     for __mangled_3 in iter(__mangled_1):
                         __mangled_2.append(__mangled_3.do_stuff())
