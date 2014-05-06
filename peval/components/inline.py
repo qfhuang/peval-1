@@ -11,7 +11,7 @@ from peval.core.visitor import Visitor
 
 def inline(tree, constants):
     tree = copy.deepcopy(tree)
-    gen_sym = GenSym(tree)
+    gen_sym = GenSym.for_tree(tree)
     visitor = Inliner(dict(constants), gen_sym)
     visitor.visit(tree)
     return tree, visitor._constants
@@ -33,9 +33,8 @@ class Inliner(Visitor):
         '''
         is_known, fn = get_node_value_if_known(node.func, self._constants)
         if is_known and is_inlined_fn(fn):
-            inlined_body, result_node, new_gen_sym_state, self._constants = \
-                _inline(fn, node, self._gen_sym.get_state(), self._constants)
-            self._gen_sym.set_state(new_gen_sym_state)
+            inlined_body, result_node, self._gen_sym, self._constants = \
+                _inline(fn, node, self._gen_sym, self._constants)
 
             #inlined_body = self._visit(inlined_body) # optimize inlined code
 
@@ -52,15 +51,14 @@ def is_inlined_fn(fn):
     return getattr(fn, '_peval_inline', False)
 
 
-def _inline(fn, node, gen_sym_state, constants):
+def _inline(fn, node, gen_sym, constants):
     ''' Return a list of nodes, representing inlined function call,
     and a node, repesenting the variable that stores result.
     '''
     fn_ast = Function.from_object(fn).tree
     constants = dict(constants)
 
-    new_fn_ast, new_gen_sym_state, return_var = mangle(fn_ast, gen_sym_state)
-    gen_sym = GenSym.from_state(gen_sym_state)
+    new_fn_ast, gen_sym, return_var = mangle(fn_ast, gen_sym)
 
     inlined_body = []
     assert not node.kwargs and not node.starargs
@@ -79,7 +77,7 @@ def _inline(fn, node, gen_sym_state, constants):
     if isinstance(inlined_code[-1], ast.Break): # single return
         inlined_body.extend(inlined_code[:-1])
     else: # multiple returns - wrap in "while"
-        while_var = gen_sym('while')
+        gen_sym, while_var = gen_sym('while')
         inlined_body.extend([
             ast.Assign(
                 targets=[ast.Name(id=while_var, ctx=ast.Store())],
@@ -94,4 +92,4 @@ def _inline(fn, node, gen_sym_state, constants):
                 orelse=[])
             ])
 
-    return inlined_body, ast.Name(id=return_var, ctx=ast.Load()), gen_sym.get_state(), constants
+    return inlined_body, ast.Name(id=return_var, ctx=ast.Load()), gen_sym, constants

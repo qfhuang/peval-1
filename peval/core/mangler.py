@@ -29,7 +29,7 @@ class Mangler(ast.NodeTransformer):
             if node_id in self._mangled:
                 mangled_id = self._mangled[node_id]
             else:
-                mangled_id = self._gen_sym('mangled')
+                self._gen_sym, mangled_id = self._gen_sym('mangled')
                 self._mangled[node_id] = mangled_id
             if is_name:
                 return ast.Name(id=mangled_id, ctx=node.ctx)
@@ -49,18 +49,17 @@ class Mangler(ast.NodeTransformer):
         '''
         self.generic_visit(node)
         if self._return_var is None:
-            self._return_var = self._gen_sym('return')
+            self._gen_sym, self._return_var = self._gen_sym('return')
         return [ast.Assign(
                     targets=[ast.Name(id=self._return_var, ctx=ast.Store())],
                     value=node.value),
                 ast.Break()]
 
 
-def mangle(node, gen_sym_state):
+def mangle(node, gen_sym):
     new_node = copy.deepcopy(node)
     locals_ = find_symbol_creations(new_node)
-    gen_sym = GenSym.from_state(gen_sym_state)
     mangler = Mangler(locals_, gen_sym)
     mangler.visit(new_node)
     return_var = mangler.get_return_var()
-    return new_node, gen_sym.get_state(), return_var
+    return new_node, mangler._gen_sym, return_var

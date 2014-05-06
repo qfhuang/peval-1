@@ -16,7 +16,7 @@ def evaluate(ast_tree, constants):
     ''' Try running Optimizer until it finishes without rollback.
     Return optimized AST and a list of bindings that the AST needs.
     '''
-    gen_sym = GenSym(ast_tree)
+    gen_sym = GenSym.for_tree(ast_tree)
     optimizer = Optimizer(constants, gen_sym)
     while True:
         try:
@@ -292,7 +292,7 @@ class Optimizer(Visitor):
         if literal_node is not None:
             return literal_node
         else:
-            var_name = self._gen_sym('binding')
+            self._gen_sym, var_name = self._gen_sym('binding')
             self._constants[var_name] = value
             return ast.Name(id=var_name, ctx=ast.Load())
 
