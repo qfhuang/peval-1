@@ -1,7 +1,7 @@
 import ast
 import copy
 
-from peval.visitor import Visitor
+from peval.core.visitor import Visitor
 
 
 def eliminate(node, _):

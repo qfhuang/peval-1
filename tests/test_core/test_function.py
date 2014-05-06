@@ -1,7 +1,7 @@
 import ast
 import copy
 
-from peval.function import Function
+from peval.core.function import Function
 
 
 global_var = 1

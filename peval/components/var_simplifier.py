@@ -1,8 +1,8 @@
 import ast
 import copy
 
-from peval.symbol_finder import find_symbol_creations
-from peval.visitor import Visitor
+from peval.core.symbol_finder import find_symbol_creations
+from peval.core.visitor import Visitor
 
 
 def remove_assignments(tree, _):

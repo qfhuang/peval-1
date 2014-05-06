@@ -1,8 +1,8 @@
 import ast
 import copy
 
-from peval.symbol_finder import find_symbol_creations
-from peval.gensym import GenSym
+from peval.core.symbol_finder import find_symbol_creations
+from peval.core.gensym import GenSym
 
 
 class Mangler(ast.NodeTransformer):

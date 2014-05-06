@@ -1,10 +1,10 @@
 import ast
 
-from peval.gensym import GenSym
+from peval.core.gensym import GenSym
 from peval.utils import unshift
-from peval.mangler import mangle
+from peval.core.mangler import mangle
 
-from .utils import assert_ast_equal
+from tests.utils import assert_ast_equal
 
 
 def test_mutiple_returns():

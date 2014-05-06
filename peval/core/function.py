@@ -8,7 +8,7 @@ import funcsigs
 import astunparse
 
 from peval.utils import unshift, get_fn_arg_id
-from peval.symbol_finder import find_symbol_usages
+from peval.core.symbol_finder import find_symbol_usages
 
 
 def eval_function_def(function_def, globals_=None):

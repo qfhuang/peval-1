@@ -6,10 +6,10 @@ import operator
 import six
 import sys
 
-from peval.gensym import GenSym
-from peval.function import Function
+from peval.core.gensym import GenSym
+from peval.core.function import Function
 from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
-from peval.visitor import Visitor
+from peval.core.visitor import Visitor
 
 
 def evaluate(ast_tree, constants):

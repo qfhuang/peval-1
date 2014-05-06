@@ -1,4 +1,4 @@
-from peval.symbol_finder import find_symbol_creations
+from peval.core.symbol_finder import find_symbol_creations
 
 
 class GenSym(object):

@@ -1,11 +1,11 @@
 import ast
 import copy
 
-from peval.inline import inline
-from peval.evaluate import evaluate
-from peval.var_simplifier import remove_assignments
-from peval.eliminate import eliminate
-from peval.while_remover import while_remover
+from peval.components.inline import inline
+from peval.components.evaluate import evaluate
+from peval.components.var_simplifier import remove_assignments
+from peval.components.eliminate import eliminate
+from peval.components.while_remover import while_remover
 
 
 def optimized_ast(tree, constants):

@@ -8,7 +8,7 @@ if not six.PY2:
     from ast import arg
 
 from peval.utils import unshift
-from peval.function import Function
+from peval.core.function import Function
 
 from .utils import ast_to_source, ast_equal, assert_ast_equal
 

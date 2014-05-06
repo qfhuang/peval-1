@@ -1,6 +1,6 @@
 import ast
 
-from peval.function import Function
+from peval.core.function import Function
 from peval.optimizer import optimized_ast
 
 

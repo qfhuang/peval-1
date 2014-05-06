@@ -5,10 +5,10 @@ import sys
 
 from peval.utils import unshift
 from peval.decorators import pure_function, inline
-from peval.function import Function
+from peval.core.function import Function
 from peval import partial_apply
 
-from .utils import assert_ast_equal, ast_to_string, ast_to_source
+from tests.utils import assert_ast_equal, ast_to_string, ast_to_source
 
 
 def check_partial_apply(func, args=None, kwds=None,
