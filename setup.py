@@ -44,7 +44,6 @@ setup(
     keywords="AST partial optimization",
     classifiers=[
         "Development Status :: 3 - Alpha",
-        "Intended Audience :: Developers",
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
