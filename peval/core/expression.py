@@ -93,7 +93,7 @@ def wrap_in_ast(gen_sym, value):
     if isinstance(obj, int):
         return gen_sym, ast.Num(n=obj), {}
     else:
-        name, gen_sym = gen_sym()
+        gen_sym, name = gen_sym()
         return gen_sym, ast.Name(id=name), {name: obj}
 
 
