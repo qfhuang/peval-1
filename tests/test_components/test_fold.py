@@ -4,9 +4,9 @@ import inspect
 from peval.components.fold import fold
 
 
-def get_body(function):
+def get_function_tree(function):
     src = inspect.getsource(function)
-    return ast.parse(src).body[0].body
+    return ast.parse(src).body[0]
 
 
 def dummy(x):
@@ -21,5 +21,7 @@ def dummy(x):
 
 
 def test_fold():
-    statements = get_body(dummy)
-    new_tree, new_constants = fold(statements, {})
+    tree = get_function_tree(dummy)
+    new_tree, new_constants = fold(tree, {})
+    print(new_tree)
+    print(new_constants)

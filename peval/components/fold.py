@@ -3,17 +3,73 @@ import astunparse
 import inspect
 import itertools
 from functools import reduce
+import copy
 
+from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
+from peval.core.expression import peval_expression
+from peval.core.visitor import Visitor
+
+
+class Value:
+
+    def __init__(self, value=None, undefined=False):
+        if undefined:
+            self.defined = False
+        else:
+            self.defined = True
+            self.value = value
+
+    def __str__(self):
+        if not self.defined:
+            return "<undefined>"
+        else:
+            return "<" + str(self.value) + ">"
+
+    def __repr__(self):
+        if not self.defined:
+            return "Value(undefined=True)"
+        else:
+            return "Value(value={value})".format(value=repr(self.value))
+
+
+def meet_values(val1, val2):
+    if not val1.defined or not val2.defined:
+        return Value(undefined=True)
+
+    v1 = val1.value
+    v2 = val2.value
+
+    if v1 is v2:
+        return Value(value=v1)
+
+    eq = False
+    try:
+        eq = (v1 == v2)
+    except:
+        pass
+
+    if eq:
+        return Value(value=v1)
+    else:
+        return Value(undefined=True)
 
 
 class Environment:
 
     def __init__(self, values=None):
-        self.values = {} if values is None else values
+        self.values = values if values is not None else {}
+
+    @classmethod
+    def from_dict(cls, values):
+        return cls(values={name:Value(value=value) for name, value in values.items()})
+
+    def known_values(self):
+        return {name:value.value for name, value in self.values.items() if value.defined}
 
 
 def meet_envs(env1, env2):
+
     lhs = env1.values
     rhs = env2.values
     lhs_keys = set(lhs.keys())
@@ -32,79 +88,135 @@ def meet_envs(env1, env2):
     return Environment(values=result)
 
 
-def try_eval(env, expr):
-    if isinstance(expr, ast.Name):
-        if expr.id in env.values:
-            return env.values[expr.id]
-        else:
-            return Value(undefined=True)
-    elif isinstance(expr, ast.Num):
-        return Value(values=[expr.n])
-    elif isinstance(expr, ast.BinOp):
-        assert isinstance(expr.op, ast.Add)
-        lval = try_eval(env, expr.left)
-        rval = try_eval(env, expr.right)
-        if not lval.defined or not rval.defined:
-            return Value(undefined=True)
-        if not lval.hashable or not rval.hashable:
-            return Value(undefined=True)
-        return Value(values=set(x + y for x, y in itertools.product(lval.values, rval.values)))
+def my_reduce(func, seq):
+    if len(seq) == 1:
+        return seq[0]
     else:
-        return Value(undefined=True)
+        return reduce(func, seq[1:], seq[0])
 
 
-def forward_transfer(in_env, statement):
+def forward_transfer(gen_sym, in_env, statement):
 
     if isinstance(statement, ast.Assign):
         target = statement.targets[0].id
-        value = try_eval(in_env, statement.value)
-        print("* Assign to", target, statement.value, value)
+        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.value)
+
         new_values=dict(in_env.values)
-        new_values[target] = value
+
+        for name in result.mutated_bindings:
+            new_values[name] = Value(undefined=True)
+
+        if result.fully_evaluated:
+            new_value = Value(value=result.value)
+        else:
+            new_value = Value(undefined=True)
+        new_values[target] = new_value
+        new_node = ast.Assign(target=target, value=result.node)
+
         out_env = Environment(values=new_values)
-        return out_env
+        return gen_sym, out_env, new_node, result.temp_bindings
+
+    elif isinstance(statement, (ast.Expr, ast.Return)):
+        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.value)
+
+        new_values=dict(in_env.values)
+
+        for name in result.mutated_bindings:
+            new_values[name] = Value(undefined=True)
+
+        out_env = Environment(values=new_values)
+        return gen_sym, out_env, type(statement)(value=result.node), result.temp_bindings
+
+    elif isinstance(statement, ast.If):
+        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.test)
+
+        new_values=dict(in_env.values)
+
+        for name in result.mutated_bindings:
+            new_values[name] = Value(undefined=True)
+
+        out_env = Environment(values=new_values)
+        new_node = ast.If(test=result.node, body=statement.body, orelse=statement.orelse)
+        return gen_sym, out_env, new_node, result.temp_bindings
+
     else:
-        return in_env
+        raise NotImplementedError(type(statement))
 
 
-def maximal_fixed_point(graph, enter, init_env):
-    # state at the entry and exit of each basic block
-    in_envs, out_envs = {}, {}
-    for node_id in graph._nodes:
-        in_envs[node_id] = Environment()
-        out_envs[node_id] = Environment()
-    in_envs[enter] = init_env
+class State:
+
+    def __init__(self, out_env, node, temp_bindings):
+        self.out_env = out_env
+        self.node = node
+        self.temp_bindings = temp_bindings
+
+
+def maximal_fixed_point(gen_sym, graph, enter, bindings):
+
+    states = {
+        node_id:State(Environment(), graph._nodes[node_id].ast_node, {})
+        for node_id in graph._nodes}
+    enter_env = Environment.from_dict(bindings)
 
     # first make a pass over each basic block
     todo_forward = set(graph._nodes)
 
     while todo_forward:
         node_id = todo_forward.pop()
+        state = states[node_id]
 
         # compute the environment at the entry of this BB
-        parent_envs = list(map(out_envs.get, graph.parents_of(node_id)))
-        if len(parent_envs) > 1:
-            new_in_env = reduce(meet_envs, parent_envs[1:], parent_envs[0])
-        elif len(parent_envs) == 1:
-            new_in_env = parent_envs[0]
-        elif node_id == enter:
-            new_in_env = init_env
+        if node_id == enter:
+            new_in_env = enter_env
+        else:
+            parent_envs = list(map(
+                lambda parent_id: states[parent_id].out_env,
+                graph.parents_of(node_id)))
+            new_in_env = my_reduce(meet_envs, parent_envs)
 
         # propagate information for this basic block
-        new_out_env = forward_transfer(new_in_env, graph._nodes[node_id].ast_node)
-        if new_out_env != out_envs[node_id]:
-            out_envs[node_id] = new_out_env
+        gen_sym, new_out_env, new_node, temp_bindings = \
+            forward_transfer(gen_sym, new_in_env, graph._nodes[node_id].ast_node)
+        if new_out_env != states[node_id].out_env:
+            states[node_id] = State(new_out_env, new_node, temp_bindings)
             todo_forward |= graph.children_of(node_id)
 
-    # IN and OUT have converged
-    return out_envs
+    # Converged
+    new_nodes = {}
+    temp_bindings = {}
+    for node_id, state in states.items():
+        new_nodes[node_id] = state.node
+        temp_bindings.update(state.temp_bindings)
+
+    return new_nodes, temp_bindings
+
+
+def replace_nodes(tree, new_nodes):
+    tree = copy.deepcopy(tree)
+    visitor = NodeReplacer(new_nodes)
+    visitor.visit(tree)
+    return tree
+
+
+class NodeReplacer(Visitor):
+
+    def __init__(self, new_nodes):
+        self._new_nodes = new_nodes
+
+    def visit(self, node):
+        if id(node) in self._new_nodes:
+            return self._new_nodes[id(node)]
+        else:
+            Visitor.visit(self, node)
+            return node
 
 
 def fold(tree, constants):
-    cfg = build_cfg(tree)
-    env = Environment(values=constants)
-    OUT = maximal_fixed_point(cfg.graph, cfg.enter, env)
-    node_id = id(statements[-1])
-    print(OUT[node_id].values)
-
-    #return new_tree, new_constants
+    statements = tree.body
+    cfg = build_cfg(statements)
+    gen_sym = GenSym.for_tree(tree)
+    new_nodes, temp_bindings = maximal_fixed_point(gen_sym, cfg.graph, cfg.enter, constants)
+    constants = dict(constants)
+    constants.update(temp_bindings)
+    new_tree = replace_nodes(tree, new_nodes)
+    return new_tree, new_constants
