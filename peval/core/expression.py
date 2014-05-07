@@ -14,6 +14,17 @@ class KnownValue:
         return "KnownValue({value})".format(value=repr(self.value))
 
 
+class EvaluationResult:
+
+    def __init__(self, fully_evaluated, node, temp_bindings, value=None):
+        self.fully_evaluated = fully_evaluated
+        if fully_evaluated:
+            self.value = value
+        self.temp_bindings = temp_bindings
+        self.node = node
+        self.mutated_bindings = set()
+
+
 def peval_call(gen_sym, bindings, function, args=[], keywords=[], starargs=None, kwargs=None):
 
     can_eval = True
@@ -122,7 +133,7 @@ def _peval_expression(gen_sym, bindings, node):
     # Returns: gen_sym, AST/KnownValue, new_bindings
     if isinstance(node, ast.Name):
         if node.id in bindings:
-            return gen_sym, bindings[node.id], {}
+            return gen_sym, KnownValue(bindings[node.id]), {}
         else:
             return gen_sym, node, {}
     elif isinstance(node, ast.Num):
@@ -141,9 +152,20 @@ def _peval_expression(gen_sym, bindings, node):
 
 
 def peval_expression(gen_sym, bindings, node):
-    bindings = {key:KnownValue(value) for key, value in bindings.items()}
     gen_sym, result, temp_bindings = _peval_expression(gen_sym, bindings, node)
     if isinstance(result, ast.AST):
-        return gen_sym, False, result, temp_bindings
+        eval_result = EvaluationResult(
+            fully_evaluated=False,
+            node=result,
+            temp_bindings=temp_bindings)
     else:
-        return gen_sym, True, result.value, temp_bindings
+        gen_sym, result_node, binding = wrap_in_ast(gen_sym, result)
+        temp_bindings.update(binding)
+
+        eval_result = EvaluationResult(
+            fully_evaluated=True,
+            value=result.value,
+            node=result_node,
+            temp_bindings=temp_bindings)
+
+    return gen_sym, eval_result
