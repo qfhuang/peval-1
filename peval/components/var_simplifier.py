@@ -2,32 +2,27 @@ import ast
 import copy
 
 from peval.core.symbol_finder import find_symbol_creations
-from peval.core.visitor import Visitor
+from peval.core.walker import Walker
 
 
-def remove_assignments(tree, _):
-    tree = copy.deepcopy(tree)
-    visitor = Simplifier()
-    visitor.visit(tree)
-    return tree, _
+def remove_assignments(node, constants):
+    node = Simplifier.transform(node)
+    return node, constants
 
 
-def replace_node(node, **kwds):
+def replace_fields(node, **kwds):
     new_kwds = dict(ast.iter_fields(node))
     new_kwds.update(kwds)
     return type(node)(**new_kwds)
 
 
-class Simplifier(Visitor):
+@Walker
+class Simplifier:
     ''' Simplify AST, given information about what variables are known
     '''
-    def visit_FunctionDef(self, node):
-        ''' Make a call, if it is a pure function,
-        and handle mutations otherwise.
-        Inline function if it is marked with @inline.
-        '''
-        self.generic_visit(node)
-        return replace_node(node, body=_remove_assignments(node.body))
+    @staticmethod
+    def visit_functiondef(node, **kwds):
+        return replace_fields(node, body=_remove_assignments(node.body))
 
 
 def _remove_assignments(node_list):
@@ -52,7 +47,7 @@ def _remove_assignments(node_list):
 
 
 def _can_remove_assignment(assign_node, node_list):
-    ''' Can remove it iff:
+    ''' Can remove it if:
      * it is "simple"
      * result it not used in "Store" context elsewhere
     '''
@@ -67,23 +62,17 @@ def _can_remove_assignment(assign_node, node_list):
 
 
 def replace(node, var_name, value_node):
-    node = copy.deepcopy(node)
-    visitor = Replacer(var_name, value_node)
-    node = visitor.visit(node)
-    return node
+    return Replacer.transform(node, var_name=var_name, value_node=value_node)
 
 
-class Replacer(ast.NodeTransformer):
+@Walker
+class Replacer:
     ''' Replaces uses of var_name with value_node
     '''
-    def __init__(self, var_name, value_node):
-        self.var_name = var_name
-        self.value_node = value_node
-        super(Replacer, self).__init__()
 
-    def visit_Name(self, node):
-        self.generic_visit(node)
-        if isinstance(node.ctx, ast.Load) and node.id == self.var_name:
-            return self.value_node
+    @staticmethod
+    def visit_name(node, ctx, **kwds):
+        if isinstance(node.ctx, ast.Load) and node.id == ctx.var_name:
+            return ctx.value_node
         else:
             return node
