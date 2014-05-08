@@ -1,9 +1,11 @@
 import ast
+import types
 
 
 class Walker:
 
     def __init__(self, callback):
+        self._dispatched_callback = not isinstance(callback, types.FunctionType)
         self._callback = callback
 
     def _walk_list(self, lst, state):
@@ -51,9 +53,27 @@ class Walker:
         else:
             return node
 
+    @staticmethod
+    def _pass_through(node, **kwds):
+        return node
+
+    def _get_handler(self, node):
+
+        if self._dispatched_callback:
+            handler_name = 'visit_' + type(node).__name__.lower()
+            if hasattr(self._callback, handler_name):
+                return getattr(self._callback, handler_name)
+            elif hasattr(self._callback, 'visit'):
+                return self._callback.visit
+            else:
+                return self._pass_through
+        else:
+            return self._callback
+
     def _visit_node(self, node, state):
 
-        new_node = self._callback(node, state=state)
+        handler = self._get_handler(node)
+        new_node = handler(node, state=state)
 
         if new_node is node:
             # visit children

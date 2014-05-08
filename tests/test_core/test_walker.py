@@ -26,6 +26,11 @@ def check_mutation(node, walker):
     return new_node
 
 
+def dummy(x, y):
+    c = 4
+    a = 1
+
+
 @Walker
 def collect_numbers(node, state, **kwds):
     if isinstance(node, ast.Num):
@@ -42,11 +47,6 @@ def test_walk_list():
     node = get_ast(dummy)
     state = collect_numbers.inspect(node.body, state=set())
     assert state == set([1, 4])
-
-
-def dummy(x, y):
-    c = 4
-    a = 1
 
 
 @Walker
@@ -170,3 +170,31 @@ def test_wrong_list_return_value():
     node = get_ast(dummy)
     with pytest.raises(TypeError):
         wrong_list_return_value.inspect(node)
+
+
+@Walker
+class CollectNumbersWithDefault:
+    @staticmethod
+    def visit_num(node, state, **kwds):
+        state.add(node.n)
+        return node
+
+    @staticmethod
+    def visit(node, state, **kwds):
+        return node
+
+@Walker
+class CollectNumbers:
+    @staticmethod
+    def visit_num(node, state, **kwds):
+        state.add(node.n)
+        return node
+
+def test_dispatched_walker():
+    node = get_ast(dummy)
+
+    state = CollectNumbers.inspect(node, state=set())
+    assert state == set([1, 4])
+
+    state = CollectNumbersWithDefault.inspect(node, state=set())
+    assert state == set([1, 4])
