@@ -12,7 +12,7 @@ class Walker:
         transformed = False
         new_lst = []
         for node in lst:
-            result = self._visit_node(node, state)
+            result = self._visit_node(node, state, list_context=True)
             if isinstance(result, ast.AST):
                 if result is not node:
                     transformed = True
@@ -22,8 +22,6 @@ class Walker:
                 new_lst.extend(result)
             elif result is None:
                 transformed = True
-            else:
-                raise TypeError("Unexpected callback return type: " + str(type(result)))
 
         if transformed:
             return new_lst
@@ -35,10 +33,7 @@ class Walker:
         new_fields = {}
         for field, value in ast.iter_fields(node):
             if isinstance(value, ast.AST):
-                new_value = self._visit_node(value, state)
-                if new_value is not None and not isinstance(new_value, ast.AST):
-                    raise TypeError(
-                        "Expected an AST or None from the callback, got " + str(type(new_value)))
+                new_value = self._visit_node(value, state, list_context=False)
             elif isinstance(value, list):
                 new_value = self._walk_list(value, state)
             else:
@@ -70,28 +65,39 @@ class Walker:
         else:
             return self._callback
 
-    def _visit_node(self, node, state):
+    def _visit_node(self, node, state, list_context=False):
 
         handler = self._get_handler(node)
-        new_node = handler(node, state=state)
+        result = handler(node, state=state)
 
-        if new_node is node:
-            # visit children
-            new_node = self._walk_fields(node, state)
+        if list_context:
+            expected_types = (ast.AST, list)
+            expected_str = "None, AST, list"
+        else:
+            expected_types = (ast.AST,)
+            expected_str = "None, AST"
 
-        return new_node
+        if result is not None and not isinstance(result, expected_types):
+            raise TypeError(
+                "Expected callback return types in {context} are {expected}, got {got}".format(
+                    context=("list context" if list_context else "field context"),
+                    expected=expected_str,
+                    got=type(result)))
+
+        if isinstance(result, ast.AST):
+            result = self._walk_fields(result, state)
+
+        return result
 
     def transform_inspect(self, node, state=None):
         if isinstance(node, ast.AST):
-            new_node = self._visit_node(node, state)
+            wrapper_node = ast.Expr(value=node)
+            new_wrapper_node = self._walk_fields(wrapper_node, state)
+            new_node = new_wrapper_node.value
         elif isinstance(node, list):
             new_node = self._walk_list(node, state)
         else:
             raise TypeError("Cannot walk an object of type " + str(type(node)))
-
-        if type(new_node) != type(node):
-            raise TypeError("Expected {expected} from the callback, got {got}".format(
-                expected=type(new_node), got = type(node)))
 
         return new_node, state
 
@@ -99,4 +105,9 @@ class Walker:
         return self.transform_inspect(node)[0]
 
     def inspect(self, node, state=None):
-        return self.transform_inspect(node, state=state)[1]
+        new_node, state = self.transform_inspect(node, state=state)
+        if new_node is not node:
+            raise ValueError(
+                "AST was transformed in the process of inspection. "
+                "Run `transform_inspect` to retain the changed tree.")
+        return state

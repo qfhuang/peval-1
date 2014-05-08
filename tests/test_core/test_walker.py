@@ -49,6 +49,8 @@ def test_walk_list():
     assert state == set([1, 4])
 
 
+# Transformations
+
 @Walker
 def change_name(node, **kwds):
     if isinstance(node, ast.Name) and node.id == 'a':
@@ -127,6 +129,8 @@ def test_remove_field():
         """))
 
 
+# Error checks
+
 @Walker
 def pass_through(node, **kwds):
     return node
@@ -172,6 +176,14 @@ def test_wrong_list_return_value():
         wrong_list_return_value.inspect(node)
 
 
+def test_hidden_mutation():
+    node = get_ast(dummy)
+    with pytest.raises(ValueError):
+        state = change_name.inspect(node, set())
+
+
+# Handler dispatchers
+
 @Walker
 class CollectNumbersWithDefault:
     @staticmethod
@@ -198,3 +210,34 @@ def test_dispatched_walker():
 
     state = CollectNumbersWithDefault.inspect(node, state=set())
     assert state == set([1, 4])
+
+
+# Advanced functionality
+
+def dummy_nested(x, y):
+    def inner_function(z):
+        return z
+    return inner_function
+
+def replace_field(node, **kwds):
+    new_kwds = dict(ast.iter_fields(node))
+    new_kwds.update(kwds)
+    return type(node)(**new_kwds)
+
+@Walker
+def mangle_functions(node, **kwds):
+    if isinstance(node, ast.FunctionDef):
+        return replace_field(node, name='__' + node.name)
+    else:
+        return node
+
+def test_walk_children():
+    node = get_ast(dummy_nested)
+    new_node = mangle_functions.transform(node)
+    assert_ast_equal(new_node, get_ast(
+        """
+        def __dummy_nested(x, y):
+            def __inner_function(z):
+                return z
+            return inner_function
+        """))
