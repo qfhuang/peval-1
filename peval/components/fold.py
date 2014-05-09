@@ -8,7 +8,7 @@ import copy
 from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
 from peval.core.expression import peval_expression
-from peval.core.visitor import Visitor
+from peval.core.walker import Walker
 
 
 class Value:
@@ -192,23 +192,15 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
 
 
 def replace_nodes(tree, new_nodes):
-    tree = copy.deepcopy(tree)
-    visitor = NodeReplacer(new_nodes)
-    visitor.visit(tree)
-    return tree
+    return _replace_nodes.transform(tree, ctx=dict(new_nodes=new_nodes))
 
 
-class NodeReplacer(Visitor):
-
-    def __init__(self, new_nodes):
-        self._new_nodes = new_nodes
-
-    def visit(self, node):
-        if id(node) in self._new_nodes:
-            return self._new_nodes[id(node)]
-        else:
-            Visitor.visit(self, node)
-            return node
+@Walker
+def _replace_nodes(node, ctx, **kwds):
+    if id(node) in ctx.new_nodes:
+        return ctx.new_nodes[id(node)]
+    else:
+        return node
 
 
 def fold(tree, constants):
@@ -219,4 +211,4 @@ def fold(tree, constants):
     constants = dict(constants)
     constants.update(temp_bindings)
     new_tree = replace_nodes(tree, new_nodes)
-    return new_tree, new_constants
+    return new_tree, constants
