@@ -96,8 +96,14 @@ class Walker:
         def prepend(nodes):
             self._current_block_stack[-1].extend(nodes)
 
+        visiting_after = [False]
+        def visit_after():
+            visiting_after[0] = True
+
         handler = self._get_handler(node)
-        result = handler(node, state=state, ctx=ctx, prepend=prepend)
+        result = handler(
+            node, state=state, ctx=ctx, prepend=prepend,
+            visit_after=visit_after, visiting_after=False)
 
         if list_context:
             expected_types = (ast.AST, list)
@@ -115,6 +121,18 @@ class Walker:
 
         if isinstance(result, ast.AST):
             result = self._walk_fields(result, state, ctx)
+
+        if visiting_after[0] and isinstance(result, ast.AST):
+            result = handler(
+                result, state=state, ctx=ctx, prepend=prepend,
+                visit_after=None, visiting_after=True)
+
+            if result is not None and not isinstance(result, expected_types):
+                raise TypeError(
+                    "Expected callback return types in {context} are {expected}, got {got}".format(
+                        context=("list context" if list_context else "field context"),
+                        expected=expected_str,
+                        got=type(result)))
 
         return result
 
