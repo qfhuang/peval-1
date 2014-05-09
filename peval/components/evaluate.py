@@ -19,53 +19,55 @@ def evaluate(ast_tree, constants):
     gen_sym = GenSym.for_tree(ast_tree)
     constants = dict(constants)
 
-    optimizer = Optimizer(constants, gen_sym)
+    state=dict(gen_sym=gen_sym, constants=constants, mutated_nodes=set())
+
     while True:
         try:
-            new_ast, state = Optimizer.transform_inspect(
-                ast_tree,
-                state=dict(gen_sym=gen_sym, constants=constants, mutated_nodes={}))
-        except Optimizer.Rollback:
+            new_ast, state = Optimizer.transform_inspect(ast_tree, state=state)
+        except Rollback:
             # we gathered more knowledge and want to try again
             continue
 
         return new_ast, constants
 
 
+NUMBER_TYPES = six.integer_types + (float,)
+STRING_TYPES = six.string_types + (six.text_type, six.binary_type)
+
+# build-in functions that return the same result for the same arguments
+# and do not change their arguments or global environment
+PURE_FUNCTIONS = (
+    abs, divmod, staticmethod,
+    all, enumerate, int, ord, str,
+    any, isinstance, pow, sum,
+    issubclass, super,
+    bin, iter, property, tuple,
+    bool, filter, len, range, type,
+    bytearray, float, list,
+    callable, format,
+    chr, frozenset,
+    classmethod, getattr, map, repr,
+    max, reversed, zip,
+    hasattr, round,
+    complex, hash, min, set,
+    help, next,
+    dict, hex, object, slice,
+    dir, id, oct, sorted,
+    )
+
+if six.PY2:
+    PURE_FUNCTIONS += (
+        basestring, unichr, reduce, xrange, unicode, long, cmp, apply, coerce)
+
+
+class Rollback(Exception):
+    pass
+
+
 @Walker
 class Optimizer:
     ''' Simplify AST, given information about what variables are known
     '''
-    class Rollback(Exception):
-        pass
-
-    NUMBER_TYPES = six.integer_types + (float,)
-    STRING_TYPES = six.string_types + (six.text_type, six.binary_type)
-
-    # build-in functions that return the same result for the same arguments
-    # and do not change their arguments or global environment
-    PURE_FUNCTIONS = (
-        abs, divmod, staticmethod,
-        all, enumerate, int, ord, str,
-        any, isinstance, pow, sum,
-        issubclass, super,
-        bin, iter, property, tuple,
-        bool, filter, len, range, type,
-        bytearray, float, list,
-        callable, format,
-        chr, frozenset,
-        classmethod, getattr, map, repr,
-        max, reversed, zip,
-        hasattr, round,
-        complex, hash, min, set,
-        help, next,
-        dict, hex, object, slice,
-        dir, id, oct, sorted,
-        )
-
-    if six.PY2:
-        PURE_FUNCTIONS += (
-            basestring, unichr, reduce, xrange, unicode, long, cmp, apply, coerce)
 
     @staticmethod
     def visit_module(node, state, **kwds):
@@ -89,6 +91,8 @@ class Optimizer:
             literal_node = get_literal_node(state['constants'][node.id])
             if literal_node is not None:
                 return literal_node
+            else:
+                return node
         else:
             return node
 
@@ -123,10 +127,12 @@ class Optimizer:
             visit_after()
             return node
 
-        is_known, fn = get_node_value_if_known(node.func, self._constants)
+        is_known, fn = get_node_value_if_known(node.func, state['constants'])
         if is_known:
-            if self._is_pure_fn(fn):
-                return self._fn_result_node_if_safe(fn, node)
+            if _is_pure_fn(fn):
+                state['gen_sym'], state['constants'], node = \
+                    _fn_result_node_if_safe(state['gen_sym'], fn, node, state['constants'])
+                return node
             else:
                 return node
         else:
@@ -135,7 +141,7 @@ class Optimizer:
             # if we don't know it's pure, it can mutate the arguments
             for arg_node in node.args:
                 if is_load_name(arg_node):
-                    self._mark_mutated_node(arg_node)
+                    _mark_mutated_node(state['mutated_nodes'], state['constants'], arg_node)
                 else:
                     # The function argument is an expression.
                     # Technically, this expression can return one of its arguments
@@ -145,7 +151,7 @@ class Optimizer:
             if isinstance(node.func, ast.Attribute):
                 obj_node = node.func.value
                 if is_load_name(obj_node):
-                    self._mark_mutated_node(obj_node)
+                    _mark_mutated_node(state['mutated_nodes'], state['constants'], obj_node)
                 else:
                     # Well, it is hard, because it can be something like
                     # Fooo(x).transform() that also mutates x.
@@ -154,51 +160,72 @@ class Optimizer:
                     pass
         return node
 
-    def visit_UnaryOp(self, node):
+    @staticmethod
+    def visit_unaryop(node, state, visit_after, visiting_after, **kwds):
         ''' Hanle "not" - evaluate if possible
         '''
-        self.generic_visit(node)
+        if not visiting_after:
+            visit_after()
+            return node
+
         if isinstance(node.op, ast.Not):
-            is_known, value = get_node_value_if_known(node.operand, self._constants)
+            is_known, value = get_node_value_if_known(node.operand, state['constants'])
             if is_known:
-                return self._new_binding_node(not value)
+                state['gen_sym'], state['constants'], node = \
+                    _new_binding_node(state['gen_sym'], state['constants'], not value)
+                return node
         return node
 
-    def visit_BoolOp(self, node):
+    @staticmethod
+    def visit_boolop(node, state, visit_after, visiting_after, **kwds):
         ''' and, or - handle short-circuting
         '''
         assert type(node.op) in (ast.And, ast.Or)
+
+        if not visiting_after:
+            visit_after()
+            return node
+
         new_value_nodes = []
         for value_node in node.values:
-            value_node = self.visit(value_node)
-            is_known, value = get_node_value_if_known(value_node, self._constants)
+            is_known, value = get_node_value_if_known(value_node, state['constants'])
             if is_known:
                 if isinstance(node.op, ast.And):
                     if not value:
-                        return self._new_binding_node(False)
+                        state['gen_sym'], state['constants'], node = \
+                            _new_binding_node(state['gen_sym'], state['constants'], False)
+                        return node
                 elif isinstance(node.op, ast.Or):
                     if value:
-                        return self._new_binding_node(value)
+                        state['gen_sym'], state['constants'], node = \
+                            _new_binding_node(state['gen_sym'], state['constants'], value)
+                        return node
             else:
                 new_value_nodes.append(value_node)
         if not new_value_nodes:
-            return self._new_binding_node(isinstance(node.op, ast.And))
+            state['gen_sym'], state['constants'], node = \
+                _new_binding_node(state['gen_sym'], state['constants'],
+                    isinstance(node.op, ast.And))
+            return node
         elif len(new_value_nodes) == 1:
             return new_value_nodes[0]
         else:
-            node.values = new_value_nodes
+            return type(node)(op=node.op, value=new_value_nodes)
+
+    @staticmethod
+    def visit_compare(node, state, visit_after, visiting_after, **kwds):
+        ''' ==, >, etc. - evaluate only if all are known
+        '''
+        if not visiting_after:
+            visit_after()
             return node
 
-    def visit_Compare(self, node):
-        ''' ==, >, etc. - evaluate only if all are know
-        '''
-        self.generic_visit(node)
-        is_known, value = get_node_value_if_known(node.left, self._constants)
+        is_known, value = get_node_value_if_known(node.left, state['constants'])
         if not is_known:
             return node
         value_list = [value]
         for value_node in node.comparators:
-            is_known, value = get_node_value_if_known(value_node, self._constants)
+            is_known, value = get_node_value_if_known(value_node, state['constants'])
             if not is_known:
                 return node
             value_list.append(value)
@@ -212,14 +239,23 @@ class Optimizer:
                     ast.NotEq: lambda: a != b,
                     }[type(op)]()
             if not result:
-                return self._new_binding_node(False)
-        return self._new_binding_node(True)
+                state['gen_sym'], state['constants'], node = \
+                    _new_binding_node(state['gen_sym'], state['constants'], False)
+                return node
 
-    def visit_BinOp(self, node):
+        state['gen_sym'], state['constants'], node = \
+            _new_binding_node(state['gen_sym'], state['constants'], True)
+        return node
+
+    @staticmethod
+    def visit_binop(node, state, visit_after, visiting_after, **kwds):
         ''' Binary arithmetic - + * / etc.
         Evaluate if everything is known.
         '''
-        self.generic_visit(node)
+        if not visiting_after:
+            visit_after()
+            return node
+
         operations = {
                 ast.Add: operator.add,
                 ast.Sub: operator.sub,
@@ -233,78 +269,83 @@ class Optimizer:
                 ast.BitXor: operator.xor,
                 ast.FloorDiv: operator.floordiv,
                 }
-        if self._py2_div:
+        if state['py2_div']:
             operations[ast.Div] = operator.div
         else:
             operations[ast.Div] = operator.truediv
 
-        can_apply = lambda is_known, value: is_known and \
-                type(value) in self.NUMBER_TYPES
+        can_apply = lambda is_known, value: is_known and type(value) in NUMBER_TYPES
         if type(node.op) in operations:
-            is_known, l_value = get_node_value_if_known(node.left, self._constants)
+            is_known, l_value = get_node_value_if_known(node.left, state['constants'])
             if can_apply(is_known, l_value):
-                is_known, r_value = get_node_value_if_known(node.right, self._constants)
+                is_known, r_value = get_node_value_if_known(node.right, state['constants'])
                 if can_apply(is_known, r_value):
                     value = operations[type(node.op)](l_value, r_value)
-                    return self._new_binding_node(value)
+                    state['gen_sym'], state['constants'], node = \
+                        _new_binding_node(state['gen_sym'], state['constants'], value)
+                    return node
         return node
 
-    def _fn_result_node_if_safe(self, fn, node):
-        ''' Check that we know all fn args.
-        Than call it and return a node representing the value.
-        It we can not call fn, just return node.
-        Assume that fn is pure.
-        '''
-        assert isinstance(node, ast.Call) and self._is_pure_fn(fn)
-        args = []
-        for arg_node in node.args:
-            is_known, value = get_node_value_if_known(arg_node, self._constants)
-            if is_known:
-                args.append(value)
-            else:
-                return node
 
-        assert not node.kwargs and not node.keywords and not node.starargs
-        try:
-            fn_value = fn(*args)
-        except:
-            # do not optimize the call away to leave original exception
-            return node
+def _fn_result_node_if_safe(gen_sym, fn, node, constants):
+    ''' Check that we know all fn args.
+    Than call it and return a node representing the value.
+    It we can not call fn, just return node.
+    Assume that fn is pure.
+    '''
+    assert isinstance(node, ast.Call) and _is_pure_fn(fn)
+    args = []
+    for arg_node in node.args:
+        is_known, value = get_node_value_if_known(arg_node, constants)
+        if is_known:
+            args.append(value)
         else:
-            return self._new_binding_node(fn_value)
+            return gen_sym, constants, node
 
-    def _is_pure_fn(self, fn):
-        ''' fn has no side effects, and its value is determined only by
-        its inputs
-        '''
-        if fn in self.PURE_FUNCTIONS:
-            return True
-        else:
-            return getattr(fn, '_peval_is_pure', False)
+    assert not node.kwargs and not node.keywords and not node.starargs
+    try:
+        fn_value = fn(*args)
+    except:
+        # do not optimize the call away to leave original exception
+        return gen_sym, constants, node
+    else:
+        return _new_binding_node(gen_sym, constants, fn_value)
 
-    def _new_binding_node(self, value):
-        ''' Generate unique variable name, add it to constants with given value,
-        and return the node that loads generated variable.
-        '''
-        literal_node = get_literal_node(value)
-        if literal_node is not None:
-            return literal_node
-        else:
-            self._gen_sym, var_name = self._gen_sym('binding')
-            self._constants[var_name] = value
-            return ast.Name(id=var_name, ctx=ast.Load())
 
-    def _mark_mutated_node(self, node):
-        ''' Mark that node holding some variable can be mutated,
-        and propagate this information up the dataflow graph
-        '''
-        assert is_load_name(node)
-        self._mutated_nodes.add(node)
-        if node.id in self._constants:
-            # obj can be mutated, and we can not assume we know it
-            # so we have to rollback here
-            del self._constants[node.id]
-            raise self.Rollback('%s is mutated' % node.id)
+def _is_pure_fn(fn):
+    ''' fn has no side effects, and its value is determined only by
+    its inputs
+    '''
+    if fn in PURE_FUNCTIONS:
+        return True
+    else:
+        return getattr(fn, '_peval_is_pure', False)
+
+
+def _new_binding_node(gen_sym, constants, value):
+    ''' Generate unique variable name, add it to constants with given value,
+    and return the node that loads generated variable.
+    '''
+    literal_node = get_literal_node(value)
+    if literal_node is not None:
+        return gen_sym, constants, literal_node
+    else:
+        gen_sym, var_name = gen_sym('binding')
+        constants[var_name] = value
+        return gen_sym, constants, ast.Name(id=var_name, ctx=ast.Load())
+
+
+def _mark_mutated_node(mutated_nodes, constants, node):
+    ''' Mark that node holding some variable can be mutated,
+    and propagate this information up the dataflow graph
+    '''
+    assert is_load_name(node)
+    mutated_nodes.add(node)
+    if node.id in constants:
+        # obj can be mutated, and we can not assume we know it
+        # so we have to rollback here
+        del constants[node.id]
+        raise Rollback('%s is mutated' % node.id)
 
 
 def is_load_name(node):
