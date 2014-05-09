@@ -32,7 +32,6 @@ def test_mutiple_returns():
     expected_tree = ast.parse(expected_source)
 
     gen_sym = GenSym.for_tree(tree)
-    new_tree, gen_sym, return_var = mangle(tree, gen_sym)
+    gen_sym, new_tree = mangle(gen_sym, tree, '__return_5')
 
     assert_ast_equal(new_tree, expected_tree)
-    assert return_var == '__return_5'

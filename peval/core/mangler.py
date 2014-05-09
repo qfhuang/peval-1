@@ -3,63 +3,67 @@ import copy
 
 from peval.core.symbol_finder import find_symbol_creations
 from peval.core.gensym import GenSym
+from peval.core.walker import Walker
 
 
-class Mangler(ast.NodeTransformer):
+def _visit_local(gen_sym, node, to_mangle, mangled):
+    ''' Replacing known variables with literal values
+    '''
+    is_name = isinstance(node, ast.Name)
+
+    node_id = node.id if is_name else node.arg
+    if node_id in to_mangle:
+        if node_id in mangled:
+            mangled_id = mangled[node_id]
+        else:
+            gen_sym, mangled_id = gen_sym('mangled')
+            mangled[node_id] = mangled_id
+        if is_name:
+            return gen_sym, ast.Name(id=mangled_id, ctx=node.ctx)
+        else:
+            return gen_sym, ast.arg(arg=mangled_id, annotation=node.annotation)
+    else:
+        return gen_sym, node
+
+
+@Walker
+class Mangler:
     ''' Mangle all variable names, returns.
     '''
-    def __init__(self, fn_locals, gen_sym):
-        self._gen_sym = gen_sym
-        self._locals = fn_locals
-        self._mangled = {} # {original name -> mangled name}
-        self._return_var = None
-        super(Mangler, self).__init__()
 
-    def get_return_var(self):
-        return self._return_var
+    @staticmethod
+    def visit_arg(node, state, ctx, **kwds):
+        state['gen_sym'], node = _visit_local(
+            state['gen_sym'], node, ctx.fn_locals, state['mangled'])
+        return node
 
-    def _visit_local(self, node):
-        ''' Replacing known variables with literal values
-        '''
-        self.generic_visit(node)
-        is_name = isinstance(node, ast.Name)
+    @staticmethod
+    def visit_name(node, state, ctx, **kwds):
+        state['gen_sym'], node = _visit_local(
+            state['gen_sym'], node, ctx.fn_locals, state['mangled'])
+        return node
 
-        node_id = node.id if is_name else node.arg
-        if node_id in self._locals:
-            if node_id in self._mangled:
-                mangled_id = self._mangled[node_id]
-            else:
-                self._gen_sym, mangled_id = self._gen_sym('mangled')
-                self._mangled[node_id] = mangled_id
-            if is_name:
-                return ast.Name(id=mangled_id, ctx=node.ctx)
-            else:
-                return ast.arg(arg=mangled_id, annotation=node.annotation)
-        else:
-            return node
-
-    def visit_arg(self, node):
-        return self._visit_local(node)
-
-    def visit_Name(self, node):
-        return self._visit_local(node)
-
-    def visit_Return(self, node):
+    @staticmethod
+    def visit_return(node, state, ctx, **kwds):
         ''' Substitute return with return variable assignment + break
         '''
-        self.generic_visit(node)
-        if self._return_var is None:
-            self._gen_sym, self._return_var = self._gen_sym('return')
+        new_value, sub_state = Mangler.transform_inspect(
+            node.value,
+            state=dict(gen_sym=state['gen_sym'], mangled=state['mangled']),
+            ctx=dict(fn_locals=ctx.fn_locals, return_name=ctx.return_name))
+        state['gen_sym'] = sub_state['gen_sym']
+        state['mangled'] = sub_state['mangled']
+
         return [ast.Assign(
-                    targets=[ast.Name(id=self._return_var, ctx=ast.Store())],
-                    value=node.value),
+                    targets=[ast.Name(id=ctx.return_name, ctx=ast.Store())],
+                    value=new_value),
                 ast.Break()]
 
 
-def mangle(node, gen_sym):
-    new_node = copy.deepcopy(node)
-    locals_ = find_symbol_creations(new_node)
-    mangler = Mangler(locals_, gen_sym)
-    mangler.visit(new_node)
-    return_var = mangler.get_return_var()
-    return new_node, mangler._gen_sym, return_var
+def mangle(gen_sym, node, return_name):
+    fn_locals = find_symbol_creations(node)
+    new_node, state = Mangler.transform_inspect(
+        node,
+        state=dict(gen_sym=gen_sym, mangled={}),
+        ctx=dict(fn_locals=fn_locals, return_name=return_name))
+    return state['gen_sym'], new_node

@@ -6,43 +6,41 @@ from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
-from peval.core.visitor import Visitor
+from peval.core.walker import Walker
 
 
 def inline(tree, constants):
-    tree = copy.deepcopy(tree)
     gen_sym = GenSym.for_tree(tree)
-    visitor = Inliner(dict(constants), gen_sym)
-    visitor.visit(tree)
-    return tree, visitor._constants
+    constants = dict(constants)
+    tree, state = inliner.transform_inspect(
+        tree, state=dict(gen_sym=gen_sym, constants=constants))
+    return tree, state['constants']
 
 
-class Inliner(Visitor):
-    ''' Simplify AST, given information about what variables are known
+@Walker
+def inliner(node, state, prepend, **kwds):
+    ''' Make a call, if it is a pure function,
+    and handle mutations otherwise.
+    Inline function if it is marked with @inline.
     '''
+    if isinstance(node, ast.Call):
+        gen_sym = state['gen_sym']
+        constants = state['constants']
 
-    def __init__(self, constants, gen_sym):
-        super(Inliner, self).__init__()
-        self._constants = constants
-        self._gen_sym = gen_sym
-
-    def visit_Call(self, node):
-        ''' Make a call, if it is a pure function,
-        and handle mutations otherwise.
-        Inline function if it is marked with @inline.
-        '''
-        is_known, fn = get_node_value_if_known(node.func, self._constants)
+        is_known, fn = get_node_value_if_known(node.func, constants)
         if is_known and is_inlined_fn(fn):
-            inlined_body, result_node, self._gen_sym, self._constants = \
-                _inline(fn, node, self._gen_sym, self._constants)
+            gen_sym, return_name = gen_sym('return')
+            gen_sym, inlined_body, constants = _inline(gen_sym, node, return_name, constants)
 
-            #inlined_body = self._visit(inlined_body) # optimize inlined code
+            prepend(inlined_body)
+            state['constants'] = constants
+            state['gen_sym'] = gen_sym
 
-            self._current_block.extend(inlined_body)
-            return result_node
+            return ast.Name(id=return_name, ctx=ast.Load())
         else:
-            self.generic_visit(node)
             return node
+    else:
+        return node
 
 
 def is_inlined_fn(fn):
@@ -51,14 +49,15 @@ def is_inlined_fn(fn):
     return getattr(fn, '_peval_inline', False)
 
 
-def _inline(fn, node, gen_sym, constants):
+def _inline(gen_sym, node, return_name, constants):
     ''' Return a list of nodes, representing inlined function call,
     and a node, repesenting the variable that stores result.
     '''
+    fn = constants[node.func.id]
     fn_ast = Function.from_object(fn).tree
     constants = dict(constants)
 
-    new_fn_ast, gen_sym, return_var = mangle(fn_ast, gen_sym)
+    gen_sym, new_fn_ast = mangle(gen_sym, fn_ast, return_name)
 
     inlined_body = []
     assert not node.kwargs and not node.starargs
@@ -92,4 +91,4 @@ def _inline(fn, node, gen_sym, constants):
                 orelse=[])
             ])
 
-    return inlined_body, ast.Name(id=return_var, ctx=ast.Load()), gen_sym, constants
+    return gen_sym, inlined_body, constants
