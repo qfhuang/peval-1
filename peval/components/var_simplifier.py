@@ -62,7 +62,7 @@ def _can_remove_assignment(assign_node, node_list):
 
 
 def replace(node, var_name, value_node):
-    return Replacer.transform(node, var_name=var_name, value_node=value_node)
+    return Replacer.transform(node, ctx=dict(var_name=var_name, value_node=value_node))
 
 
 @Walker
