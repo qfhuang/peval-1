@@ -9,7 +9,7 @@ import sys
 from peval.core.gensym import GenSym
 from peval.core.function import Function
 from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
-from peval.core.visitor import Visitor
+from peval.core.walker import Walker
 
 
 def evaluate(ast_tree, constants):
@@ -17,20 +17,23 @@ def evaluate(ast_tree, constants):
     Return optimized AST and a list of bindings that the AST needs.
     '''
     gen_sym = GenSym.for_tree(ast_tree)
+    constants = dict(constants)
+
     optimizer = Optimizer(constants, gen_sym)
     while True:
         try:
-            new_ast = optimizer.visit(ast_tree)
+            new_ast, state = Optimizer.transform_inspect(
+                ast_tree,
+                state=dict(gen_sym=gen_sym, constants=constants, mutated_nodes={}))
         except Optimizer.Rollback:
             # we gathered more knowledge and want to try again
             continue
-        else:
-            all_bindings = dict(constants)
-            all_bindings.update(optimizer.get_bindings())
-            return new_ast, all_bindings
+
+        return new_ast, constants
 
 
-class Optimizer(Visitor):
+@Walker
+class Optimizer:
     ''' Simplify AST, given information about what variables are known
     '''
     class Rollback(Exception):
@@ -64,67 +67,62 @@ class Optimizer(Visitor):
         PURE_FUNCTIONS += (
             basestring, unichr, reduce, xrange, unicode, long, cmp, apply, coerce)
 
-    def __init__(self, constants, gen_sym):
-        '''
-        :constants: a dict names-> values of variables known at compile time
-        '''
-        super(Optimizer, self).__init__()
-        self._gen_sym = gen_sym
-        self._constants = dict(constants)
-        self._mutated_nodes = set()
-
-    def get_bindings(self):
-        ''' Return a dict, populated with newly bound variables
-        (results of calculations done at compile time), and survived
-        initial constants.
-        '''
-        return self._constants
-
-    def visit_Module(self, node):
+    @staticmethod
+    def visit_module(node, state, **kwds):
         # True if old behavior of division operator is active
         # (truediv for floats, floordiv for integers).
-        self._py2_div = (six.PY2 and self._constants.get('division') is not division)
-        self.generic_visit(node)
+        state['py2_div'] = (six.PY2 and state['constants'].get('division') is not division)
         return node
 
-    def visit_ImportFrom(self, node):
+    @staticmethod
+    def visit_importfrom(node, state, **kwds):
         # Detecting 'from __future__ import division'
         if node.module == '__future__' and any(alias.name == 'division' for alias in node.names):
-            self._py2_div = False
+            state['py2_div'] = False
         return node
 
-    def visit_Name(self, node):
+    @staticmethod
+    def visit_name(node, state, **kwds):
         ''' Replacing known variables with literal values
         '''
-        self.generic_visit(node)
-        if isinstance(node.ctx, ast.Load) and node.id in self._constants:
-            literal_node = get_literal_node(self._constants[node.id])
+        if isinstance(node.ctx, ast.Load) and node.id in state['constants']:
+            literal_node = get_literal_node(state['constants'][node.id])
             if literal_node is not None:
                 return literal_node
-        return node
+        else:
+            return node
 
-    def visit_If(self, node):
+    @staticmethod
+    def visit_if(node, state, visit_after, visiting_after, **kwds):
         ''' Leave only one branch, if possible
         '''
-        node.test = self.visit(node.test)
-        is_known, test_value = get_node_value_if_known(node.test, self._constants)
-        if is_known:
-            pass_ = ast.Pass()
-            taken_node = node.body if test_value else node.orelse
-            if taken_node:
-                return self._visit(taken_node) or pass_
-            else:
-                return pass_
-        else:
-            node.body = self._visit(node.body)
-            node.orelse = self._visit(node.orelse)
-        return node
+        # FIXME: if we could first visit the `test` field, we may only need
+        # to visit one of the branches, depending on its value.
+        # Now we are visiting both in all cases, which is a bit ineffective.
+        if not visiting_after:
+            visit_after()
+            return node
 
-    def visit_Call(self, node):
+        is_known, test_value = get_node_value_if_known(node.test, state['constants'])
+        if is_known:
+            if test_value:
+                return node.body
+            elif len(node.orelse) > 0:
+                return node.orelse
+            else:
+                return [ast.Pass()]
+        else:
+            return node
+
+    @staticmethod
+    def visit_call(node, state, visit_after, visiting_after, **kwds):
         ''' Make a call, if it is a pure function,
         and handle mutations otherwise.
         '''
-        self.generic_visit(node)
+        if not visiting_after:
+            visit_after()
+            return node
+
         is_known, fn = get_node_value_if_known(node.func, self._constants)
         if is_known:
             if self._is_pure_fn(fn):
