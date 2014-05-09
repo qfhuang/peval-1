@@ -241,3 +241,23 @@ def test_walk_children():
                 return z
             return inner_function
         """))
+
+
+def test_global_context():
+
+    @Walker
+    def rename(node, ctx, **kwds):
+        if isinstance(node, ast.Name) and node.id == ctx.old_name:
+            return ast.Name(id=ctx.new_name, ctx=node.ctx)
+        else:
+            return node
+
+    node = get_ast(dummy)
+    new_node = rename.transform(node, ctx=dict(old_name='c', new_name='d'))
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy(x, y):
+            d = 4
+            a = 1
+        """))
