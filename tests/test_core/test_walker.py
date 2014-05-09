@@ -31,6 +31,13 @@ def dummy(x, y):
     a = 1
 
 
+def dummy_blocks(x, y):
+    a = 1
+    if x:
+        b = 2
+    c = 3
+
+
 @Walker
 def collect_numbers(node, state, **kwds):
     if isinstance(node, ast.Num):
@@ -261,3 +268,42 @@ def test_global_context():
             d = 4
             a = 1
         """))
+
+
+def test_prepend():
+
+    @Walker
+    def prepender(node, prepend, **kwds):
+        if isinstance(node, ast.Name):
+            if node.id == 'a':
+                prepend(
+                    [ast.Assign(targets=[ast.Name(id='k', ctx=ast.Store())], value=ast.Num(n=10))])
+                return node
+            elif node.id == 'b':
+                prepend(
+                    [ast.Assign(targets=[ast.Name(id='l', ctx=ast.Store())], value=ast.Num(n=20))])
+                return ast.Name(id='d', ctx=node.ctx)
+            elif node.id == 'c':
+                prepend(
+                    [ast.Assign(targets=[ast.Name(id='m', ctx=ast.Store())], value=ast.Num(n=30))])
+                return node
+            else:
+                return node
+        else:
+            return node
+
+    node = get_ast(dummy_blocks)
+    new_node = prepender.transform(node)
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy_blocks(x, y):
+            k = 10
+            a = 1
+            if x:
+                l = 20
+                d = 2
+            m = 30
+            c = 3
+        """))
+

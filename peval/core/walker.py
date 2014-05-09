@@ -8,17 +8,31 @@ class AttrDict(dict):
         return self[attr]
 
 
+BLOCK_FIELDS = set(['body', 'orelse'])
+
+
 class Walker:
 
     def __init__(self, callback):
         self._dispatched_callback = not isinstance(callback, types.FunctionType)
         self._callback = callback
+        self._current_block_stack = [[]]
 
-    def _walk_list(self, lst, state, ctx):
+    def _walk_list(self, lst, state, ctx, block_context=False):
         transformed = False
         new_lst = []
+
+        if block_context:
+            self._current_block_stack.append([])
+
         for node in lst:
             result = self._visit_node(node, state, ctx, list_context=True)
+
+            if block_context and len(self._current_block_stack[-1]) > 0:
+                transformed = True
+                new_lst.extend(self._current_block_stack[-1])
+                self._current_block_stack[-1] = []
+
             if isinstance(result, ast.AST):
                 if result is not node:
                     transformed = True
@@ -29,6 +43,9 @@ class Walker:
             elif result is None:
                 transformed = True
 
+        if block_context:
+            self._current_block_stack.pop()
+
         if transformed:
             return new_lst
         else:
@@ -38,10 +55,13 @@ class Walker:
         transformed = False
         new_fields = {}
         for field, value in ast.iter_fields(node):
+
+            block_context = field in BLOCK_FIELDS
+
             if isinstance(value, ast.AST):
-                new_value = self._visit_node(value, state, ctx, list_context=False)
+                new_value = self._visit_node(value, state, ctx)
             elif isinstance(value, list):
-                new_value = self._walk_list(value, state, ctx)
+                new_value = self._walk_list(value, state, ctx, block_context=block_context)
             else:
                 new_value = value
 
@@ -73,8 +93,11 @@ class Walker:
 
     def _visit_node(self, node, state, ctx, list_context=False):
 
+        def prepend(nodes):
+            self._current_block_stack[-1].extend(nodes)
+
         handler = self._get_handler(node)
-        result = handler(node, state=state, ctx=ctx)
+        result = handler(node, state=state, ctx=ctx, prepend=prepend)
 
         if list_context:
             expected_types = (ast.AST, list)
