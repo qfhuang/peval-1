@@ -94,8 +94,19 @@ def get_body(function):
     return ast.parse(src).body[0].body
 
 
-def assert_edges_equal(cfg, expected_edges):
+def assert_labels_equal(cfg, expected_edges, expected_exits, expected_raises):
     test_edges = get_labeled_edges(cfg)
+
+    expected_exits = list(sorted(expected_exits))
+    test_exits = list(sorted([make_label(cfg.graph._nodes[exit_id]) for exit_id in cfg.exits]))
+
+    assert expected_exits == test_exits
+
+    expected_raises = list(sorted(expected_raises))
+    test_raises = list(sorted([make_label(cfg.graph._nodes[exit_id]) for exit_id in cfg.raises]))
+
+    assert expected_raises == test_raises
+
     equal = (test_edges == expected_edges)
     if not equal:
         make_str = lambda edges: "\n".join(src + " --> " + dest for src, dest in edges)
@@ -105,11 +116,11 @@ def assert_edges_equal(cfg, expected_edges):
     assert equal
 
 
-def check_cfg(function, expected_edges):
+def check_cfg(function, expected_edges, expected_exits, expected_raises):
     statements = get_body(function)
     cfg = build_cfg(statements)
 
-    assert_edges_equal(cfg, expected_edges)
+    assert_labels_equal(cfg, expected_edges, expected_exits, expected_raises)
 
     if RENDER_GRAPHS:
         render_cfg(cfg, 'test_' + function.__name__ + '.pdf')
@@ -131,17 +142,21 @@ def func_if():
 
 
 def test_func_if():
-    check_cfg(func_if, [
-        ('a = 1', 'b = 2'),
-        ('b = 2', 'if (a > 2):'),
-        ('if (a > 2):', 'do_stuff()'),
-        ('if (a > 2):', 'if (a > 4):'),
-        ('if (a > 4):', 'bar()'),
-        ('if (a > 4):', 'foo()'),
-        ('foo()', 'return b'),
-        ('bar()', 'return b'),
-        ('do_stuff()', 'do_smth_else()'),
-        ('do_smth_else()', 'return 3')])
+    check_cfg(
+        func_if,
+        expected_edges=[
+            ('a = 1', 'b = 2'),
+            ('b = 2', 'if (a > 2):'),
+            ('if (a > 2):', 'do_stuff()'),
+            ('if (a > 2):', 'if (a > 4):'),
+            ('if (a > 4):', 'bar()'),
+            ('if (a > 4):', 'foo()'),
+            ('foo()', 'return b'),
+            ('bar()', 'return b'),
+            ('do_stuff()', 'do_smth_else()'),
+            ('do_smth_else()', 'return 3')],
+        expected_exits=['return 3', 'return b'],
+        expected_raises=[])
 
 
 def func_for():
@@ -162,22 +177,26 @@ def func_for():
 
 
 def test_func_for():
-    check_cfg(func_for, [
-        ('a = 1', 'for i in range(5):'),
-        ('for i in range(5):', 'b = 2'),
-        ('b = 2', 'if (i > 4):'),
-        ('if (i > 4):', 'break'),
-        ('if (i > 4):', 'if (i > 2):'),
-        ('if (i > 2):', 'continue'),
-        ('if (i > 2):', 'foo()'),
-        ('foo()', 'c = 3'),
-        ('foo()', 'for i in range(5):'),
-        ('c = 3', 'return b'),
-        ('continue', 'for i in range(5):'),
-        ('break', 'return b')])
+    check_cfg(
+        func_for,
+        expected_edges=[
+            ('a = 1', 'for i in range(5):'),
+            ('for i in range(5):', 'b = 2'),
+            ('b = 2', 'if (i > 4):'),
+            ('if (i > 4):', 'break'),
+            ('if (i > 4):', 'if (i > 2):'),
+            ('if (i > 2):', 'continue'),
+            ('if (i > 2):', 'foo()'),
+            ('foo()', 'c = 3'),
+            ('foo()', 'for i in range(5):'),
+            ('c = 3', 'return b'),
+            ('continue', 'for i in range(5):'),
+            ('break', 'return b')],
+        expected_exits=['return b'],
+        expected_raises=[])
 
 
-def func_try():
+def func_try_except():
     a = 1
 
     for i in range(5):
@@ -196,30 +215,34 @@ def func_try():
     return b
 
 
-def test_func_try():
-    check_cfg(func_try, [
-        ('a = 1', 'for i in range(5):'),
-        ('for i in range(5):', 'try:'),
-        ('try:', 'do()'),
-        ('do()', 'except Exception:'),
-        ('do()', 'except ValueError:'),
-        ('do()', 'if (i > 3):'),
-        ('if (i > 3):', 'break'),
-        ('if (i > 3):', 'except Exception:'),
-        ('if (i > 3):', 'except ValueError:'),
-        ('if (i > 3):', 'stuff()'),
-        ('stuff()', 'do_else()'),
-        ('stuff()', 'except Exception:'),
-        ('stuff()', 'except ValueError:'),
-        ('except ValueError:', 'bar()'),
-        ('bar()', 'for i in range(5):'),
-        ('bar()', 'return b'),
-        ('except Exception:', 'foo()'),
-        ('foo()', 'for i in range(5):'),
-        ('foo()', 'return b'),
-        ('do_else()', 'for i in range(5):'),
-        ('do_else()', 'return b'),
-        ('break', 'return b')])
+def test_func_try_except():
+    check_cfg(
+        func_try_except,
+        expected_edges=[
+            ('a = 1', 'for i in range(5):'),
+            ('for i in range(5):', 'try:'),
+            ('try:', 'do()'),
+            ('do()', 'except Exception:'),
+            ('do()', 'except ValueError:'),
+            ('do()', 'if (i > 3):'),
+            ('if (i > 3):', 'break'),
+            ('if (i > 3):', 'except Exception:'),
+            ('if (i > 3):', 'except ValueError:'),
+            ('if (i > 3):', 'stuff()'),
+            ('stuff()', 'do_else()'),
+            ('stuff()', 'except Exception:'),
+            ('stuff()', 'except ValueError:'),
+            ('except ValueError:', 'bar()'),
+            ('bar()', 'for i in range(5):'),
+            ('bar()', 'return b'),
+            ('except Exception:', 'foo()'),
+            ('foo()', 'for i in range(5):'),
+            ('foo()', 'return b'),
+            ('do_else()', 'for i in range(5):'),
+            ('do_else()', 'return b'),
+            ('break', 'return b')],
+        expected_exits=['return b'],
+        expected_raises=[])
 
 
 def func_try_finally():
@@ -229,6 +252,68 @@ def func_try_finally():
         do()
         stuff()
         return c
+    finally:
+        do_finally()
+
+    return b
+
+
+def test_func_try_finally():
+    check_cfg(
+        func_try_finally,
+        expected_edges=[
+            ('a = 1', 'try:'),
+            ('try:', 'do()'),
+            ('do()', 'do_finally()'),
+            ('do()', 'stuff()'),
+            ('stuff()', 'do_finally()'),
+            ('stuff()', 'return c'),
+            ('return c', 'do_finally()'),
+            ('do_finally()', 'return b')],
+        expected_exits=['do_finally()', 'return b'],
+        expected_raises=['do_finally()'])
+
+
+def func_try_except_finally():
+    a = 1
+
+    try:
+        do()
+        stuff()
+        return c
+    except Exception:
+        foo()
+    finally:
+        do_finally()
+
+    return b
+
+
+def test_func_try_except_finally():
+    check_cfg(
+        func_try_except_finally,
+        expected_edges=[
+            ('a = 1', 'try:'),
+            ('try:', 'do()'),
+            ('do()', 'except Exception:'),
+            ('do()', 'stuff()'),
+            ('stuff()', 'except Exception:'),
+            ('stuff()', 'return c'),
+            ('return c', 'do_finally()'),
+            ('return c', 'except Exception:'),
+            ('except Exception:', 'foo()'),
+            ('foo()', 'do_finally()'),
+            ('do_finally()', 'return b')],
+        expected_exits=['do_finally()', 'return b'],
+        expected_raises=[])
+
+
+def func_try_except_else_finally():
+    a = 1
+
+    try:
+        do()
+        stuff()
     except Exception:
         foo()
     else:
@@ -239,16 +324,19 @@ def func_try_finally():
     return b
 
 
-def test_func_try_finally():
-    check_cfg(func_try_finally, [
-        ('a = 1', 'try:'),
-        ('try:', 'do()'),
-        ('do()', 'except Exception:'),
-        ('do()', 'stuff()'),
-        ('stuff()', 'except Exception:'),
-        ('stuff()', 'return c'),
-        ('return c', 'do_finally()'),
-        ('return c', 'except Exception:'),
-        ('except Exception:', 'foo()'),
-        ('foo()', 'do_finally()'),
-        ('do_finally()', 'return b')])
+def test_func_try_except_else_finally():
+    check_cfg(
+        func_try_except_else_finally,
+        expected_edges=[
+            ('a = 1', 'try:'),
+            ('try:', 'do()'),
+            ('do()', 'except Exception:'),
+            ('do()', 'stuff()'),
+            ('stuff()', 'do_else()'),
+            ('stuff()', 'except Exception:'),
+            ('except Exception:', 'foo()'),
+            ('foo()', 'do_finally()'),
+            ('do_finally()', 'return b'),
+            ('do_else()', 'do_finally()')],
+        expected_exits=['return b'],
+        expected_raises=[])

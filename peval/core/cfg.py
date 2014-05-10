@@ -25,8 +25,8 @@ class Graph:
         assert src in self._nodes
         assert dest in self._nodes
 
-        assert dest not in self.children_of(src)
-        assert src not in self.parents_of(dest)
+        #assert dest not in self.children_of(src)
+        #assert src not in self.parents_of(dest)
 
         self._nodes[src].children.add(dest)
         self._nodes[dest].parents.add(src)
@@ -167,13 +167,13 @@ def get_nontrivial_nodes(graph):
     # returns ids of nodes that can possibly raise an exception
     nodes = []
     if sys.version_info >= (3, 3):
-        try_cls = ast.Try
+        try_cls = (ast.Try,)
     else:
-        try_cls = ast.TryExcept
+        try_cls = (ast.TryExcept, ast.TryFinally)
 
     for node_id, node_obj in graph._nodes.items():
         node = node_obj.ast_node
-        if not isinstance(node, (ast.Break, ast.Continue, ast.Pass, try_cls)):
+        if not isinstance(node, (ast.Break, ast.Continue, ast.Pass) + try_cls):
             nodes.append(node_id)
     return nodes
 
@@ -189,12 +189,12 @@ def _build_excepthandler_cfg(node):
     return ControlFlowSubgraph(graph, enter, exits=cfg.exits, jumps=cfg.jumps)
 
 
-def _build_try_cfg(node):
+def _build_try_block_cfg(try_node, body, handlers, orelse):
 
     graph = Graph()
-    enter = graph.add_node(node)
+    enter = graph.add_node(try_node)
 
-    body_cfg = _build_cfg(node.body)
+    body_cfg = _build_cfg(body)
 
     jumps = body_cfg.jumps
     jumps.raises = [] # raises will be connected to all the handlers anyway
@@ -202,25 +202,31 @@ def _build_try_cfg(node):
     graph.update(body_cfg.graph)
     graph.add_edge(enter, body_cfg.enter)
 
-    # FIXME: is it correct in case of nested `try`s?
-    body_ids = get_nontrivial_nodes(body_cfg.graph)
-
-    handler_cfgs = [_build_excepthandler_cfg(handler) for handler in node.handlers]
+    handler_cfgs = [_build_excepthandler_cfg(handler) for handler in handlers]
     for handler_cfg in handler_cfgs:
         graph.update(handler_cfg.graph)
-        jumps.join(handler_cfg.jumps)
+        jumps = jumps.join(handler_cfg.jumps)
 
-    for body_id in body_ids:
-        for handler_cfg in handler_cfgs:
-            graph.add_edge(body_id, handler_cfg.enter)
+    # FIXME: is it correct in case of nested `try`s?
+    body_ids = get_nontrivial_nodes(body_cfg.graph)
+    if len(handler_cfgs) > 0:
+        # FIXME: if there are exception handlers,
+        # assuming that all the exceptions are caught by them
+        for body_id in body_ids:
+            for handler_cfg in handler_cfgs:
+                graph.add_edge(body_id, handler_cfg.enter)
+    else:
+        # If there are no handlers, every statement can potentially raise
+        # (otherwise they wouldn't be in a try block)
+        jumps = jumps.join(Jumps(raises=body_ids))
 
     exits = body_cfg.exits
 
-    if len(node.orelse) > 0 and len(body_cfg.exits) > 0:
+    if len(orelse) > 0 and len(body_cfg.exits) > 0:
         # FIXME: show warning about unreachable code if there's `orelse`, but no exits from body?
-        orelse_cfg = _build_cfg(node.orelse)
+        orelse_cfg = _build_cfg(orelse)
         graph.update(orelse_cfg.graph)
-        jumps.join(orelse_cfg.jumps)
+        jumps = jumps.join(orelse_cfg.jumps)
         for exit in exits:
             graph.add_edge(exit, orelse_cfg.enter)
         exits = orelse_cfg.exits
@@ -231,21 +237,23 @@ def _build_try_cfg(node):
     return ControlFlowSubgraph(graph, enter, exits=exits, jumps=jumps)
 
 
-def _build_try_finally_cfg(node):
+def _build_try_finally_block_cfg(try_node, body, handlers, orelse, finalbody):
 
-    if sys.version_info < (3, 3):
-        try_cfg = _build_try_cfg(node.body[0])
-    else:
-        try_cfg = _build_try_cfg(node)
+    try_cfg = _build_try_block_cfg(try_node, body, handlers, orelse)
 
-    if len(node.finalbody) == 0:
+    if len(finalbody) == 0:
         return try_cfg
 
     # everything has to pass through finally
-    final_cfg = _build_cfg(node.finalbody)
+    final_cfg = _build_cfg(finalbody)
     graph = try_cfg.graph
     jumps = try_cfg.jumps
     graph.update(final_cfg.graph)
+
+    #if len(handlers) == 0:
+        # FIXME: is it correct in case of nested `try`s?
+        #for body_id in get_nontrivial_nodes(try_cfg.graph):
+        #    graph.add_edge(body_id, final_cfg.enter)
 
     for exit in try_cfg.exits:
         graph.add_edge(exit, final_cfg.enter)
@@ -269,6 +277,28 @@ def _build_try_finally_cfg(node):
         jumps=Jumps(returns=returns, raises=raises, continues=continues, breaks=breaks))
 
 
+def _build_try_finally_cfg(node):
+    # Pre-Py3.3 try block with the `finally` part
+    if isinstance(node.body[0], ast.TryExcept):
+        # If there are exception handlers, the body consists of a single TryExcept node
+        return _build_try_finally_block_cfg(
+            node, node.body[0].body, node.body[0].handlers, node.body[0].orelse, node.finalbody)
+    else:
+        # If there are no exception handlers, the body is just a sequence of statements
+        return _build_try_finally_block_cfg(
+            node, node.body, [], [], node.finalbody)
+
+
+def _build_try_except_cfg(node):
+    # Pre-Py3.3 try block without the `finally` part
+    return _build_try_finally_block_cfg(node, node.body, node.handlers, node.orelse, [])
+
+
+def _build_try_cfg(node):
+    # Post-Py3.3 try block
+    return _build_try_finally_block_cfg(node, node.body, node.handlers, node.orelse, node.finalbody)
+
+
 def _build_node_cfg(node):
     handlers = {
         ast.If: _build_if_cfg,
@@ -280,12 +310,11 @@ def _build_node_cfg(node):
         ast.Return: _build_return_cfg,
         }
 
-    if sys.version_info >= (3,):
-        handlers[ast.TryFinally] = _build_try_finally_cfg
     if sys.version_info >= (3, 3):
-        handlers[ast.Try] = _build_try_finally_cfg
+        handlers[ast.Try] = _build_try_cfg
     else:
-        handlers[ast.TryExcept] = _build_try_cfg
+        handlers[ast.TryFinally] = _build_try_finally_cfg
+        handlers[ast.TryExcept] = _build_try_except_cfg
 
     if type(node) in handlers:
         handler = handlers[type(node)]
