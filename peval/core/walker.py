@@ -51,19 +51,21 @@ class Walker:
         else:
             return lst
 
+    def _walk_field(self, value, state, ctx, block_context=False):
+        if isinstance(value, ast.AST):
+            return self._visit_node(value, state, ctx)
+        elif isinstance(value, list):
+            return self._walk_list(value, state, ctx, block_context=block_context)
+        else:
+            return value
+
     def _walk_fields(self, node, state, ctx):
         transformed = False
         new_fields = {}
         for field, value in ast.iter_fields(node):
 
             block_context = field in BLOCK_FIELDS
-
-            if isinstance(value, ast.AST):
-                new_value = self._visit_node(value, state, ctx)
-            elif isinstance(value, list):
-                new_value = self._walk_list(value, state, ctx, block_context=block_context)
-            else:
-                new_value = value
+            new_value = self._walk_field(value, state, ctx, block_context=block_context)
 
             new_fields[field] = new_value
             if new_value is not value:
@@ -100,10 +102,18 @@ class Walker:
         def visit_after():
             visiting_after[0] = True
 
+        skipping_fields = [False]
+        def skip_fields():
+            skipping_fields[0] = True
+
+        def walk_field(value, block_context=False):
+            return self._walk_field(value, state, ctx, block_context=block_context)
+
         handler = self._get_handler(node)
         result = handler(
             node, state=state, ctx=ctx, prepend=prepend,
-            visit_after=visit_after, visiting_after=False)
+            visit_after=visit_after, visiting_after=False,
+            skip_fields=skip_fields, walk_field=walk_field)
 
         if list_context:
             expected_types = (ast.AST, list)
@@ -119,7 +129,7 @@ class Walker:
                     expected=expected_str,
                     got=type(result)))
 
-        if isinstance(result, ast.AST):
+        if isinstance(result, ast.AST) and not skipping_fields[0]:
             result = self._walk_fields(result, state, ctx)
 
         if visiting_after[0] and isinstance(result, ast.AST):
