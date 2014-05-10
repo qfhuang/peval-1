@@ -62,10 +62,10 @@ class Environment:
 
     @classmethod
     def from_dict(cls, values):
-        return cls(values={name:Value(value=value) for name, value in values.items()})
+        return cls(values=dict((name, Value(value=value)) for name, value in values.items()))
 
     def known_values(self):
-        return {name:value.value for name, value in self.values.items() if value.defined}
+        return dict((name, value.value) for name, value in self.values.items() if value.defined)
 
 
 def meet_envs(env1, env2):
@@ -153,9 +153,9 @@ class State:
 
 def maximal_fixed_point(gen_sym, graph, enter, bindings):
 
-    states = {
-        node_id:State(Environment(), graph._nodes[node_id].ast_node, {})
-        for node_id in graph._nodes}
+    states = dict(
+        (node_id, State(Environment(), graph._nodes[node_id].ast_node, {}))
+        for node_id in graph._nodes)
     enter_env = Environment.from_dict(bindings)
 
     # first make a pass over each basic block
