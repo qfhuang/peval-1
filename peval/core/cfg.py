@@ -166,7 +166,7 @@ def _build_statement_cfg(node):
 def get_nontrivial_nodes(graph):
     # returns ids of nodes that can possibly raise an exception
     nodes = []
-    if sys.version_info >= (3,):
+    if sys.version_info >= (3, 3):
         try_cls = ast.Try
     else:
         try_cls = ast.TryExcept
@@ -233,7 +233,10 @@ def _build_try_cfg(node):
 
 def _build_try_finally_cfg(node):
 
-    try_cfg = _build_try_cfg(node)
+    if sys.version_info < (3, 3):
+        try_cfg = _build_try_cfg(node.body[0])
+    else:
+        try_cfg = _build_try_cfg(node)
 
     if len(node.finalbody) == 0:
         return try_cfg
@@ -278,6 +281,8 @@ def _build_node_cfg(node):
         }
 
     if sys.version_info >= (3,):
+        handlers[ast.TryFinally] = _build_try_finally_cfg
+    if sys.version_info >= (3, 3):
         handlers[ast.Try] = _build_try_finally_cfg
     else:
         handlers[ast.TryExcept] = _build_try_cfg
