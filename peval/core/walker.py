@@ -28,11 +28,11 @@ class Walker:
     def __init__(self, callback, inspect=False, transform=False):
 
         if inspect and transform:
-            self.__call__ = self._transform_inspect
+            self._call = self._transform_inspect
         elif inspect:
-            self.__call__ = self._inspect
+            self._call = self._inspect
         elif transform:
-            self.__call__ = self._transform
+            self._call = self._transform
 
         self._dispatched_callback = not isinstance(callback, types.FunctionType)
         self._callback = callback
@@ -192,3 +192,7 @@ class Walker:
                 "AST was transformed in the process of inspection. "
                 "Run `transform_inspect` to retain the changed tree.")
         return state
+
+    def __call__(self, *args, **kwds):
+        # Redefining __call__ in __init__ does not work since Py3
+        return self._call(*args, **kwds)
