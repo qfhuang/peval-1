@@ -44,6 +44,12 @@ def dummy_nested(x, y):
     return inner_function
 
 
+def dummy_if():
+    if a:
+        if b:
+            pass
+
+
 def test_mutable_state():
 
     @ast_inspector
@@ -335,3 +341,30 @@ def test_prepend():
             c = 3
         """))
 
+
+def test_visit_after():
+
+    @ast_transformer
+    def simplify(node, visit_after, visiting_after, **kwds):
+        if isinstance(node, ast.If):
+            if not visiting_after:
+                visit_after()
+                return node
+
+            # This wouldn't work if we didn't simplify the child nodes first
+            if (len(node.orelse) == 0 and len(node.body) == 1
+                    and isinstance(node.body[0], ast.Pass)):
+                return ast.Pass()
+            else:
+                return node
+        else:
+            return node
+
+    node = get_ast(dummy_if)
+    new_node = simplify(node)
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy_if():
+            pass
+        """))
