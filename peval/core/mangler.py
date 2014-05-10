@@ -3,7 +3,7 @@ import copy
 
 from peval.core.symbol_finder import find_symbol_creations
 from peval.core.gensym import GenSym
-from peval.core.walker import Walker
+from peval.core.walker import ast_walker
 
 
 def _visit_local(gen_sym, node, to_mangle, mangled):
@@ -26,8 +26,8 @@ def _visit_local(gen_sym, node, to_mangle, mangled):
         return gen_sym, node
 
 
-@Walker
-class Mangler:
+@ast_walker
+class _mangle:
     ''' Mangle all variable names, returns.
     '''
 
@@ -47,7 +47,7 @@ class Mangler:
     def visit_return(node, state, ctx, **kwds):
         ''' Substitute return with return variable assignment + break
         '''
-        new_value, sub_state = Mangler.transform_inspect(
+        new_value, sub_state = _mangle(
             node.value,
             state=dict(gen_sym=state['gen_sym'], mangled=state['mangled']),
             ctx=dict(fn_locals=ctx.fn_locals, return_name=ctx.return_name))
@@ -62,7 +62,7 @@ class Mangler:
 
 def mangle(gen_sym, node, return_name):
     fn_locals = find_symbol_creations(node)
-    new_node, state = Mangler.transform_inspect(
+    new_node, state = _mangle(
         node,
         state=dict(gen_sym=gen_sym, mangled={}),
         ctx=dict(fn_locals=fn_locals, return_name=return_name))

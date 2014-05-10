@@ -1,7 +1,7 @@
 import ast
 import six
 
-from peval.core.walker import Walker
+from peval.core.walker import ast_inspector
 
 
 if six.PY2:
@@ -10,8 +10,8 @@ else:
     STORE_CTXS = (ast.Store,)
 
 
-@Walker
-class SymbolCreationFinder:
+@ast_inspector
+class _find_symbol_creations:
 
     @staticmethod
     def visit_arg(node, state, **kwds):
@@ -41,11 +41,11 @@ class SymbolCreationFinder:
 def find_symbol_creations(tree):
     ''' Return a set of all local variable names in ast tree
     '''
-    return SymbolCreationFinder.inspect(tree, state=set())
+    return _find_symbol_creations(tree, state=set())
 
 
-@Walker
-class SymbolUsageFinder:
+@ast_inspector
+class _find_symbol_usages:
 
     @staticmethod
     def visit_name(node, state, **kwds):
@@ -57,4 +57,4 @@ class SymbolUsageFinder:
 def find_symbol_usages(tree):
     ''' Return a set of all variables used in ast tree
     '''
-    return SymbolUsageFinder.inspect(tree, state=set())
+    return _find_symbol_usages(tree, state=set())

@@ -9,7 +9,7 @@ import sys
 from peval.core.gensym import GenSym
 from peval.core.function import Function
 from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
-from peval.core.walker import Walker
+from peval.core.walker import ast_walker
 
 
 def evaluate(ast_tree, constants):
@@ -23,7 +23,7 @@ def evaluate(ast_tree, constants):
 
     while True:
         try:
-            new_ast, state = Optimizer.transform_inspect(ast_tree, state=state)
+            new_ast, state = optimize(ast_tree, state=state)
         except Rollback:
             # we gathered more knowledge and want to try again
             continue
@@ -64,8 +64,8 @@ class Rollback(Exception):
     pass
 
 
-@Walker
-class Optimizer:
+@ast_walker
+class optimize:
     ''' Simplify AST, given information about what variables are known
     '''
 

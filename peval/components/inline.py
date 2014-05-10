@@ -6,18 +6,18 @@ from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
-from peval.core.walker import Walker
+from peval.core.walker import ast_walker
 
 
 def inline(tree, constants):
     gen_sym = GenSym.for_tree(tree)
     constants = dict(constants)
-    tree, state = inliner.transform_inspect(
+    tree, state = inliner(
         tree, state=dict(gen_sym=gen_sym, constants=constants))
     return tree, state['constants']
 
 
-@Walker
+@ast_walker
 def inliner(node, state, prepend, **kwds):
     ''' Make a call, if it is a pure function,
     and handle mutations otherwise.

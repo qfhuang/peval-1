@@ -1,7 +1,6 @@
 core/walker
 -----------
 
-* FEATURE: more specialized decorators (transform/inspect/transform_inspect instead of Walker), since the decorated functions are intended for a single usage type anyway.
 * FEATURE: provide arguments to a callback based on it signature (same as ``py.test`` does), instead of extracting them from ``**kwds``.
 * ?FEATURE: redesign ``state`` and ``ctx`` passing. Can we join them?
 * ?BUG: are ``body`` and ``orelse`` the only fields that can contain a list of statements?

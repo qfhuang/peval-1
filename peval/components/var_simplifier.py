@@ -2,11 +2,11 @@ import ast
 import copy
 
 from peval.core.symbol_finder import find_symbol_creations
-from peval.core.walker import Walker
+from peval.core.walker import ast_transformer
 
 
 def remove_assignments(node, constants):
-    node = Simplifier.transform(node)
+    node = simplify(node)
     return node, constants
 
 
@@ -16,8 +16,8 @@ def replace_fields(node, **kwds):
     return type(node)(**new_kwds)
 
 
-@Walker
-class Simplifier:
+@ast_transformer
+class simplify:
     ''' Simplify AST, given information about what variables are known
     '''
     @staticmethod
@@ -62,11 +62,11 @@ def _can_remove_assignment(assign_node, node_list):
 
 
 def replace(node, var_name, value_node):
-    return Replacer.transform(node, ctx=dict(var_name=var_name, value_node=value_node))
+    return _replace(node, ctx=dict(var_name=var_name, value_node=value_node))
 
 
-@Walker
-class Replacer:
+@ast_transformer
+class _replace:
     ''' Replaces uses of var_name with value_node
     '''
 

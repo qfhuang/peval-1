@@ -8,7 +8,7 @@ import copy
 from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
 from peval.core.expression import peval_expression
-from peval.core.walker import Walker
+from peval.core.walker import ast_transformer
 
 
 class Value:
@@ -192,10 +192,10 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
 
 
 def replace_nodes(tree, new_nodes):
-    return _replace_nodes.transform(tree, ctx=dict(new_nodes=new_nodes))
+    return _replace_nodes(tree, ctx=dict(new_nodes=new_nodes))
 
 
-@Walker
+@ast_transformer
 def _replace_nodes(node, ctx, **kwds):
     if id(node) in ctx.new_nodes:
         return ctx.new_nodes[id(node)]

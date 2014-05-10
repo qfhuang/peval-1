@@ -1,16 +1,16 @@
 import ast
 import copy
 
-from peval.core.walker import Walker
+from peval.core.walker import ast_transformer
 
 
 def while_remover(node, constants):
-    node = WhileRemover.transform(node)
+    node = remove_whiles(node)
     return node, constants
 
 
-@Walker
-class WhileRemover:
+@ast_transformer
+class remove_whiles:
 
     @staticmethod
     def visit_while(node, **kwds):

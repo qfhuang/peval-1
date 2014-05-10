@@ -1,11 +1,11 @@
 import ast
 import copy
 
-from peval.core.walker import Walker
+from peval.core.walker import ast_transformer
 
 
 def eliminate(node, constants):
-    return _eliminate.transform(node), constants
+    return _eliminate(node), constants
 
 
 def replace_fields(node, **kwds):
@@ -14,7 +14,7 @@ def replace_fields(node, **kwds):
     return type(node)(**new_kwds)
 
 
-@Walker
+@ast_transformer
 def _eliminate(node, **kwds):
     for attr in ('body', 'orelse'):
         if hasattr(node, attr):

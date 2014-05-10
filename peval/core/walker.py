@@ -11,9 +11,29 @@ class AttrDict(dict):
 BLOCK_FIELDS = set(['body', 'orelse'])
 
 
+def ast_transformer(func):
+    return Walker(func, transform=True)
+
+
+def ast_inspector(func):
+    return Walker(func, inspect=True)
+
+
+def ast_walker(func):
+    return Walker(func, transform=True, inspect=True)
+
+
 class Walker:
 
-    def __init__(self, callback):
+    def __init__(self, callback, inspect=False, transform=False):
+
+        if inspect and transform:
+            self.__call__ = self._transform_inspect
+        elif inspect:
+            self.__call__ = self._inspect
+        elif transform:
+            self.__call__ = self._transform
+
         self._dispatched_callback = not isinstance(callback, types.FunctionType)
         self._callback = callback
         self._current_block_stack = [[]]
@@ -146,7 +166,7 @@ class Walker:
 
         return result
 
-    def transform_inspect(self, node, state=None, ctx=None):
+    def _transform_inspect(self, node, state=None, ctx=None):
 
         if ctx is not None:
             ctx = AttrDict(ctx)
@@ -162,11 +182,11 @@ class Walker:
 
         return new_node, state
 
-    def transform(self, node, ctx=None):
-        return self.transform_inspect(node, ctx=ctx)[0]
+    def _transform(self, node, ctx=None):
+        return self._transform_inspect(node, ctx=ctx)[0]
 
-    def inspect(self, node, state=None, ctx=None):
-        new_node, state = self.transform_inspect(node, state=state, ctx=ctx)
+    def _inspect(self, node, state=None, ctx=None):
+        new_node, state = self._transform_inspect(node, state=state, ctx=ctx)
         if new_node is not node:
             raise ValueError(
                 "AST was transformed in the process of inspection. "
