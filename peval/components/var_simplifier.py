@@ -1,10 +1,31 @@
 import ast
 import copy
 
-from peval.symbol_finder import find_symbol_creations
+from peval.core.symbol_finder import find_symbol_creations
+from peval.core.walker import Walker
 
 
-def remove_assignments(node_list):
+def remove_assignments(node, constants):
+    node = Simplifier.transform(node)
+    return node, constants
+
+
+def replace_fields(node, **kwds):
+    new_kwds = dict(ast.iter_fields(node))
+    new_kwds.update(kwds)
+    return type(node)(**new_kwds)
+
+
+@Walker
+class Simplifier:
+    ''' Simplify AST, given information about what variables are known
+    '''
+    @staticmethod
+    def visit_functiondef(node, **kwds):
+        return replace_fields(node, body=_remove_assignments(node.body))
+
+
+def _remove_assignments(node_list):
     ''' Remove one assigment at a time, touching only top level block
     (i.e. not going inside while, if, for etc)
     '''
@@ -26,7 +47,7 @@ def remove_assignments(node_list):
 
 
 def _can_remove_assignment(assign_node, node_list):
-    ''' Can remove it iff:
+    ''' Can remove it if:
      * it is "simple"
      * result it not used in "Store" context elsewhere
     '''
@@ -41,23 +62,17 @@ def _can_remove_assignment(assign_node, node_list):
 
 
 def replace(node, var_name, value_node):
-    node = copy.deepcopy(node)
-    visitor = Replacer(var_name, value_node)
-    node = visitor.visit(node)
-    return node
+    return Replacer.transform(node, ctx=dict(var_name=var_name, value_node=value_node))
 
 
-class Replacer(ast.NodeTransformer):
+@Walker
+class Replacer:
     ''' Replaces uses of var_name with value_node
     '''
-    def __init__(self, var_name, value_node):
-        self.var_name = var_name
-        self.value_node = value_node
-        super(Replacer, self).__init__()
 
-    def visit_Name(self, node):
-        self.generic_visit(node)
-        if isinstance(node.ctx, ast.Load) and node.id == self.var_name:
-            return self.value_node
+    @staticmethod
+    def visit_name(node, ctx, **kwds):
+        if isinstance(node.ctx, ast.Load) and node.id == ctx.var_name:
+            return ctx.value_node
         else:
             return node

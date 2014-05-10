@@ -1,10 +1,10 @@
 import ast
 
-from peval.gensym import GenSym
+from peval.core.gensym import GenSym
 from peval.utils import unshift
-from peval.mangler import mangle
+from peval.core.mangler import mangle
 
-from .utils import assert_ast_equal
+from tests.utils import assert_ast_equal
 
 
 def test_mutiple_returns():
@@ -31,8 +31,7 @@ def test_mutiple_returns():
     ''')
     expected_tree = ast.parse(expected_source)
 
-    gen_sym = GenSym(tree)
-    new_tree, new_gen_sym_state, return_var = mangle(tree, gen_sym.get_state())
+    gen_sym = GenSym.for_tree(tree)
+    gen_sym, new_tree = mangle(gen_sym, tree, '__return_5')
 
     assert_ast_equal(new_tree, expected_tree)
-    assert return_var == '__return_5'
