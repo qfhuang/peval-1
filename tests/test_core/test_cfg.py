@@ -109,10 +109,6 @@ def check_cfg(function, expected_edges):
     statements = get_body(function)
     cfg = build_cfg(statements)
 
-    print()
-    for src, dest in get_labeled_edges(cfg):
-        print(repr((src, dest)) + ",")
-
     assert_edges_equal(cfg, expected_edges)
 
     if RENDER_GRAPHS:
