@@ -4,6 +4,7 @@ python:
   - "2.7"
   - "3.2"
   - "3.3"
+  - "3.4"
 # - "pypy" is temporarily removed until a version with bug 1728 fixed is released
 # command to install dependencies
 install:
