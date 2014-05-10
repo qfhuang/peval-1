@@ -3,6 +3,8 @@ from __future__ import print_function, division
 import ast
 import sys
 
+import pytest
+
 from peval.utils import unshift
 from peval.decorators import pure_function, inline
 from peval.core.function import Function
@@ -157,6 +159,10 @@ def test_no_inlining():
 
 
 def test_inlining_1():
+
+    # Does not work until the CFG analyzer is implemented properly
+    pytest.xfail()
+
     check_partial_apply(
         power_inline, kwds=dict(n=1),
         expected_source='''

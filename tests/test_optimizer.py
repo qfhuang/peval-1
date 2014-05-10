@@ -242,8 +242,8 @@ def test_call_with_args():
     check_opt(
             'z = fn(x, y)',
             dict(fn=fn, x=[10], y=20.0),
-            'z = __binding_2',
-            dict(__binding_2=[10, 20.0]))
+            'z = __binding_1',
+            dict(__binding_1=[10, 20.0]))
 
 
 def test_exception():

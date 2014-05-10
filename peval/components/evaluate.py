@@ -97,26 +97,25 @@ class Optimizer:
             return node
 
     @staticmethod
-    def visit_if(node, state, visit_after, visiting_after, **kwds):
+    def visit_if(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' Leave only one branch, if possible
         '''
-        # FIXME: if we could first visit the `test` field, we may only need
-        # to visit one of the branches, depending on its value.
-        # Now we are visiting both in all cases, which is a bit ineffective.
-        if not visiting_after:
-            visit_after()
-            return node
+        skip_fields() # manual control for short cutting
 
-        is_known, test_value = get_node_value_if_known(node.test, state['constants'])
+        new_test = walk_field(node.test)
+
+        is_known, test_value = get_node_value_if_known(new_test, state['constants'])
         if is_known:
-            if test_value:
-                return node.body
-            elif len(node.orelse) > 0:
-                return node.orelse
+            pass_ = ast.Pass()
+            taken_node = node.body if test_value else node.orelse
+            if taken_node:
+                return walk_field(taken_node, block_context=True) or pass_
             else:
-                return [ast.Pass()]
+                return pass_
         else:
-            return node
+            new_body = walk_field(node.body, block_context=True)
+            new_orelse = walk_field(node.orelse, block_context=True)
+            return ast.If(test=new_test, body=new_body, orelse=new_orelse)
 
     @staticmethod
     def visit_call(node, state, visit_after, visiting_after, **kwds):
@@ -177,40 +176,39 @@ class Optimizer:
         return node
 
     @staticmethod
-    def visit_boolop(node, state, visit_after, visiting_after, **kwds):
+    def visit_boolop(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' and, or - handle short-circuting
         '''
         assert type(node.op) in (ast.And, ast.Or)
 
-        if not visiting_after:
-            visit_after()
-            return node
+        skip_fields() # need manual control for short cutting
 
         new_value_nodes = []
         for value_node in node.values:
-            is_known, value = get_node_value_if_known(value_node, state['constants'])
+            new_value_node = walk_field(value_node)
+            is_known, value = get_node_value_if_known(new_value_node, state['constants'])
             if is_known:
                 if isinstance(node.op, ast.And):
                     if not value:
-                        state['gen_sym'], state['constants'], node = \
+                        state['gen_sym'], state['constants'], new_node = \
                             _new_binding_node(state['gen_sym'], state['constants'], False)
-                        return node
+                        return new_node
                 elif isinstance(node.op, ast.Or):
                     if value:
-                        state['gen_sym'], state['constants'], node = \
+                        state['gen_sym'], state['constants'], new_node = \
                             _new_binding_node(state['gen_sym'], state['constants'], value)
-                        return node
+                        return new_node
             else:
-                new_value_nodes.append(value_node)
-        if not new_value_nodes:
-            state['gen_sym'], state['constants'], node = \
+                new_value_nodes.append(new_value_node)
+        if len(new_value_nodes) == 0:
+            state['gen_sym'], state['constants'], new_node = \
                 _new_binding_node(state['gen_sym'], state['constants'],
                     isinstance(node.op, ast.And))
-            return node
+            return new_node
         elif len(new_value_nodes) == 1:
             return new_value_nodes[0]
         else:
-            return type(node)(op=node.op, value=new_value_nodes)
+            return type(node)(op=node.op, values=new_value_nodes)
 
     @staticmethod
     def visit_compare(node, state, visit_after, visiting_after, **kwds):
