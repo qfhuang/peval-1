@@ -67,7 +67,10 @@ class Walker:
             self._current_block_stack.pop()
 
         if transformed:
-            return new_lst
+            if block_context and len(new_lst) == 0:
+                return [ast.Pass()]
+            else:
+                return new_lst
         else:
             return lst
 

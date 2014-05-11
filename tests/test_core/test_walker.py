@@ -26,6 +26,12 @@ def check_mutation(node, walker):
     return new_node
 
 
+def replace_field(node, **kwds):
+    new_kwds = dict(ast.iter_fields(node))
+    new_kwds.update(kwds)
+    return type(node)(**new_kwds)
+
+
 def dummy(x, y):
     c = 4
     a = 1
@@ -258,12 +264,6 @@ def test_dispatched_walker():
 
 # Advanced functionality
 
-def replace_field(node, **kwds):
-    new_kwds = dict(ast.iter_fields(node))
-    new_kwds.update(kwds)
-    return type(node)(**new_kwds)
-
-
 def test_walk_children():
 
     @ast_transformer
@@ -362,6 +362,29 @@ def test_visit_after():
 
     node = get_ast(dummy_if)
     new_node = simplify(node)
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy_if():
+            pass
+        """))
+
+
+def test_block_autofix():
+
+    # This transformer removes If nodes from statement blocks,
+    # but it has no way to check whether the resulting body still has some nodes or not.
+    # That's why the walker adds a Pass node automatically if after all the transformations
+    # a statement block turns out to be empty.
+    @ast_transformer
+    def delete_ifs(node, **kwds):
+        if isinstance(node, ast.If):
+            return None
+        else:
+            return node
+
+    node = get_ast(dummy_if)
+    new_node = delete_ifs(node)
 
     assert_ast_equal(new_node, get_ast(
         """
