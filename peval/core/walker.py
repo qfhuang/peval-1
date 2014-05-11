@@ -86,8 +86,8 @@ def ast_walker(func):
     If the decorator target is a class, it must contain several static methods
     with the signatures as above.
     During traversal, for a node with the type ``tp``, the call will be dispatched
-    to the method with the name ``visit_<lowercase_tp>()`` if it exists
-    (e.g., ``visit_functiondef()`` for ``ast.FunctionDef``),
+    to the method with the name ``visit_<tp>()`` if it exists
+    (e.g., ``visit_FunctionDef()`` for ``ast.FunctionDef``),
     otherwise to the method ``visit()`` if it exists,
     otherwise to the built-in default function which just returns the node and does nothing.
     """
@@ -131,9 +131,23 @@ class _Walker:
         elif transform:
             self._call = self._transform
 
-        self._dispatched_callback = not isinstance(callback, types.FunctionType)
-        self._callback = callback
         self._current_block_stack = [[]]
+
+        self._default_callback = lambda node, **kwds: node
+        self._callbacks = {}
+
+        # Fill the callbacks map.
+        # Use the same naming scheme as ast.Visitor and ast.NodeTransformer do.
+        if isinstance(callback, types.FunctionType):
+            self._default_callback = callback
+        else:
+            if hasattr(callback, 'visit'):
+                self._default_callback = getattr(callback, 'visit')
+            for attr in vars(callback):
+                if attr.startswith('visit_'):
+                    typename = attr[6:]
+                    if hasattr(ast, typename):
+                        self._callbacks[getattr(ast, typename)] = getattr(callback, attr)
 
     def _walk_list(self, lst, state, ctx, block_context=False):
         """
@@ -211,23 +225,6 @@ class _Walker:
         else:
             return node
 
-    @staticmethod
-    def _pass_through(node, **kwds):
-        return node
-
-    def _get_handler(self, node):
-
-        if self._dispatched_callback:
-            handler_name = 'visit_' + type(node).__name__.lower()
-            if hasattr(self._callback, handler_name):
-                return getattr(self._callback, handler_name)
-            elif hasattr(self._callback, 'visit'):
-                return self._callback.visit
-            else:
-                return self._pass_through
-        else:
-            return self._callback
-
     def _visit_node(self, handler, node, state, ctx, list_context=False, visiting_after=False):
 
         def prepend(nodes):
@@ -271,7 +268,7 @@ class _Walker:
         Traverses an AST node and its fields.
         """
 
-        handler = self._get_handler(node)
+        handler = self._callbacks.get(type(node), self._default_callback)
         result, to_visit_after, to_skip_fields = self._visit_node(
             handler, node, state, ctx, list_context=list_context, visiting_after=False)
 

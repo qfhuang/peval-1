@@ -238,7 +238,7 @@ def test_dispatched_walker():
     @ast_inspector
     class collect_numbers_with_default:
         @staticmethod
-        def visit_num(node, state, **kwds):
+        def visit_Num(node, state, **kwds):
             state.add(node.n)
             return node
 
@@ -249,7 +249,7 @@ def test_dispatched_walker():
     @ast_inspector
     class collect_numbers:
         @staticmethod
-        def visit_num(node, state, **kwds):
+        def visit_Num(node, state, **kwds):
             state.add(node.n)
             return node
 

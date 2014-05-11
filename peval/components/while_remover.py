@@ -13,7 +13,7 @@ def while_remover(node, constants):
 class remove_whiles:
 
     @staticmethod
-    def visit_while(node, **kwds):
+    def visit_While(node, **kwds):
 
         for idx, e in enumerate(node.body):
             if isinstance(e, ast.Break):

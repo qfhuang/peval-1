@@ -19,13 +19,13 @@ class _find_symbol_creations:
         return node
 
     @staticmethod
-    def visit_name(node, state, **kwds):
+    def visit_Name(node, state, **kwds):
         if isinstance(node.ctx, STORE_CTXS):
             state.add(node.id)
         return node
 
     @staticmethod
-    def visit_classdef(node, state, **kwds):
+    def visit_ClassDef(node, state, **kwds):
         state.add(node.arg)
         return node
 
@@ -48,7 +48,7 @@ def find_symbol_creations(tree):
 class _find_symbol_usages:
 
     @staticmethod
-    def visit_name(node, state, **kwds):
+    def visit_Name(node, state, **kwds):
         if isinstance(node.ctx, ast.Load):
             state.add(node.id)
         return node

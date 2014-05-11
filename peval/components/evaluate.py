@@ -70,21 +70,21 @@ class optimize:
     '''
 
     @staticmethod
-    def visit_module(node, state, **kwds):
+    def visit_Module(node, state, **kwds):
         # True if old behavior of division operator is active
         # (truediv for floats, floordiv for integers).
         state['py2_div'] = (six.PY2 and state['constants'].get('division') is not division)
         return node
 
     @staticmethod
-    def visit_importfrom(node, state, **kwds):
+    def visit_ImportFrom(node, state, **kwds):
         # Detecting 'from __future__ import division'
         if node.module == '__future__' and any(alias.name == 'division' for alias in node.names):
             state['py2_div'] = False
         return node
 
     @staticmethod
-    def visit_name(node, state, **kwds):
+    def visit_Name(node, state, **kwds):
         ''' Replacing known variables with literal values
         '''
         if isinstance(node.ctx, ast.Load) and node.id in state['constants']:
@@ -97,7 +97,7 @@ class optimize:
             return node
 
     @staticmethod
-    def visit_if(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
+    def visit_If(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' Leave only one branch, if possible
         '''
         new_test = walk_field(node.test)
@@ -116,7 +116,7 @@ class optimize:
             return ast.If(test=new_test, body=new_body, orelse=new_orelse)
 
     @staticmethod
-    def visit_call(node, state, visit_after, visiting_after, **kwds):
+    def visit_Call(node, state, visit_after, visiting_after, **kwds):
         ''' Make a call, if it is a pure function,
         and handle mutations otherwise.
         '''
@@ -158,7 +158,7 @@ class optimize:
         return node
 
     @staticmethod
-    def visit_unaryop(node, state, visit_after, visiting_after, **kwds):
+    def visit_UnaryOp(node, state, visit_after, visiting_after, **kwds):
         ''' Hanle "not" - evaluate if possible
         '''
         if not visiting_after:
@@ -174,7 +174,7 @@ class optimize:
         return node
 
     @staticmethod
-    def visit_boolop(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
+    def visit_BoolOp(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' and, or - handle short-circuting
         '''
         assert type(node.op) in (ast.And, ast.Or)
@@ -207,7 +207,7 @@ class optimize:
             return type(node)(op=node.op, values=new_value_nodes)
 
     @staticmethod
-    def visit_compare(node, state, visit_after, visiting_after, **kwds):
+    def visit_Compare(node, state, visit_after, visiting_after, **kwds):
         ''' ==, >, etc. - evaluate only if all are known
         '''
         if not visiting_after:
@@ -242,7 +242,7 @@ class optimize:
         return node
 
     @staticmethod
-    def visit_binop(node, state, visit_after, visiting_after, **kwds):
+    def visit_BinOp(node, state, visit_after, visiting_after, **kwds):
         ''' Binary arithmetic - + * / etc.
         Evaluate if everything is known.
         '''

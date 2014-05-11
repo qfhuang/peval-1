@@ -38,13 +38,13 @@ class _mangle:
         return node
 
     @staticmethod
-    def visit_name(node, state, ctx, **kwds):
+    def visit_Name(node, state, ctx, **kwds):
         state['gen_sym'], node = _visit_local(
             state['gen_sym'], node, ctx.fn_locals, state['mangled'])
         return node
 
     @staticmethod
-    def visit_return(node, state, ctx, **kwds):
+    def visit_Return(node, state, ctx, **kwds):
         ''' Substitute return with return variable assignment + break
         '''
         new_value, sub_state = _mangle(
