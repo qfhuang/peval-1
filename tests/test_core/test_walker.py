@@ -26,7 +26,7 @@ def check_mutation(node, walker):
     return new_node
 
 
-def replace_field(node, **kwds):
+def replace_fields(node, **kwds):
     new_kwds = dict(ast.iter_fields(node))
     new_kwds.update(kwds)
     return type(node)(**new_kwds)
@@ -269,7 +269,7 @@ def test_walk_children():
     @ast_transformer
     def mangle_functions(node, **kwds):
         if isinstance(node, ast.FunctionDef):
-            return replace_field(node, name='__' + node.name)
+            return replace_fields(node, name='__' + node.name)
         else:
             return node
 
@@ -390,4 +390,27 @@ def test_block_autofix():
         """
         def dummy_if():
             pass
+        """))
+
+
+def test_manual_fields_processing():
+
+    @ast_transformer
+    def increment(node, skip_fields, walk_field, **kwds):
+        if isinstance(node, ast.Assign):
+            skip_fields()
+            return replace_fields(node, targets=node.targets, value=walk_field(node.value))
+        elif isinstance(node, ast.Num):
+            return ast.Num(n=node.n + 1)
+        else:
+            return node
+
+    node = get_ast(dummy)
+    new_node = increment(node)
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy(x, y):
+            c = 5
+            a = 2
         """))
