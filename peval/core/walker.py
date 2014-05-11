@@ -1,29 +1,117 @@
+"""
+A replacement for ``ast.Visitor`` and ``ast.NodeTransformer`` from the standard library,
+featuring a functional interface, explicit state passing, non-mutating AST transformation
+and various minor convenience functionality.
+Inspired by the ``Walker`` class from ``macropy``.
+"""
+
 import ast
 import types
 
 
-class AttrDict(dict):
+def ast_walker(func):
+    """
+    A generic AST walker decorator.
+    Decorates either a function or a class (if dispatching based on node type is required).
+
+    Returns a callable with the signature
+
+    ::
+
+        def walker(node, state=None, ctx=None)
+
+    :param node: an ``ast.AST`` object to traverse.
+    :param state: a mutable object that will be passed to every handler call.
+    :param ctx: a dictionary with the global context which will be passed to every handler call.
+    :returns: a tuple ``(new_node, state)``, where ``state`` is the same object which was passed
+        as the corresponding parameter.
+        Does not mutate ``node``.
+
+    If ``func`` is a function, it will be called for every node during the AST traversal
+    (depth-first, pre-order).
+    It must have the signature
+
+    ::
+
+        def handler(node, [state, ctx, prepend, visit_after, visiting_after,
+            skip_fields, walk_field,] **kwds)
+
+    The names of the optional arguments must be exactly as written here,
+    but their order is not significant.
+
+    :param state: a mutable state object passed during the initial call.
+        Can be modified inside a handler.
+    :param ctx: a (supposedly immutable) dictionary with the global context
+        passed during the initial call.
+        In addition to normal dictionary methods, its values can be alternatively
+        accessed as attributes (e.g. either ``ctx['value']`` or ``ctx.value``).
+        It should not be modified by handlers.
+    :param prepend: a function ``prepend(lst)`` which, when called, prepends the list
+        of ``ast.AST`` objects to whatever is returned by the handler of the closest
+        statement block that includes the current node.
+        These nodes are not traversed automatically.
+    :param visit_after: a function of no arguments, which, when called,
+        schedules to call the handler again on this node when all of its fields are traversed
+        (providing that after calling it, the handler returns an ``ast.AST`` object
+        and not a list or ``None``).
+        During the second call this parameter is set to ``None``.
+    :param visiting_after: set to ``False`` during the normal (pre-order) visit,
+        and to ``True`` during the visit caused by ``visit_after()``.
+    :param skip_fields: a function of no arguments, which, when called,
+        orders the walker not to traverse this node's fields.
+    :param walk_field: a function ``walk_field(value, block_context=False)``,
+        which runs the traversal of the given field value.
+        If the value contains a list of statements, ``block_context`` must be set to ``True``,
+        so that ``prepend`` could work correctly.
+
+        .. warnning::
+
+            Note that ``state`` may be changed after a call to ``walk_field()``.
+
+    :returns: must return one of:
+        * ``None``, in which case the corresponding node will be removed from the parent list
+          or the parent node field.
+        * The passed ``node`` (unchanged).
+          By default, its fields will be traversed (unless ``skip_fields()`` is called).
+        * A new ``ast.AST`` object, which will replace the passed ``node`` in the AST.
+          By default, its fields will not be traversed,
+          and the handler must do it manually if needed
+          (by calling ``walk_field()``).
+        * If the current node is an element of a list,
+          a list of ``ast.AST`` objects can be returned,
+          which will be spliced in place of the node.
+          Same as in the previous case, these new nodes
+          will not be automatically traversed.
+
+    If the decorator target is a class, it must contain several static methods
+    with the signatures as above.
+    During traversal, for a node with the type ``tp``, the call will be dispatched
+    to the method with the name ``visit_<lowercase_tp>()`` if it exists
+    (e.g., ``visit_functiondef()`` for ``ast.FunctionDef``),
+    otherwise to the method ``visit()`` if it exists,
+    otherwise to the built-in default function which just returns the node and does nothing.
+    """
+    return _Walker(func, transform=True, inspect=True)
+
+
+def ast_transformer(func):
+    return _Walker(func, transform=True)
+
+
+def ast_inspector(func):
+    return _Walker(func, inspect=True)
+
+
+class _AttrDict(dict):
 
     def __getattr__(self, attr):
         return self[attr]
 
 
-BLOCK_FIELDS = set(['body', 'orelse'])
+_BLOCK_FIELDS = ('body', 'orelse')
 
 
-def ast_transformer(func):
-    return Walker(func, transform=True)
-
-
-def ast_inspector(func):
-    return Walker(func, inspect=True)
-
-
-def ast_walker(func):
-    return Walker(func, transform=True, inspect=True)
-
-
-class Walker:
+class _Walker:
 
     def __init__(self, callback, inspect=False, transform=False):
 
@@ -87,7 +175,7 @@ class Walker:
         new_fields = {}
         for field, value in ast.iter_fields(node):
 
-            block_context = field in BLOCK_FIELDS
+            block_context = field in _BLOCK_FIELDS
             new_value = self._walk_field(value, state, ctx, block_context=block_context)
 
             new_fields[field] = new_value
@@ -158,7 +246,8 @@ class Walker:
         if visiting_after[0] and isinstance(result, ast.AST):
             result = handler(
                 result, state=state, ctx=ctx, prepend=prepend,
-                visit_after=None, visiting_after=True)
+                visit_after=None, visiting_after=True,
+                skip_fields=skip_fields, walk_field=walk_field)
 
             if result is not None and not isinstance(result, expected_types):
                 raise TypeError(
@@ -172,7 +261,7 @@ class Walker:
     def _transform_inspect(self, node, state=None, ctx=None):
 
         if ctx is not None:
-            ctx = AttrDict(ctx)
+            ctx = _AttrDict(ctx)
 
         if isinstance(node, ast.AST):
             wrapper_node = ast.Expr(value=node)
