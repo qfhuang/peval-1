@@ -100,8 +100,6 @@ class optimize:
     def visit_if(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' Leave only one branch, if possible
         '''
-        skip_fields() # manual control for short cutting
-
         new_test = walk_field(node.test)
 
         is_known, test_value = get_node_value_if_known(new_test, state['constants'])
@@ -180,8 +178,6 @@ class optimize:
         ''' and, or - handle short-circuting
         '''
         assert type(node.op) in (ast.And, ast.Or)
-
-        skip_fields() # need manual control for short cutting
 
         new_value_nodes = []
         for value_node in node.values:

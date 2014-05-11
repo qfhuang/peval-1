@@ -152,7 +152,7 @@ class Walker:
                     expected=expected_str,
                     got=type(result)))
 
-        if isinstance(result, ast.AST) and not skipping_fields[0]:
+        if isinstance(result, ast.AST) and result is node and not skipping_fields[0]:
             result = self._walk_fields(result, state, ctx)
 
         if visiting_after[0] and isinstance(result, ast.AST):
