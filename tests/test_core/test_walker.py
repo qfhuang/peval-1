@@ -267,14 +267,33 @@ def test_dispatched_walker():
 def test_walk_children():
 
     @ast_transformer
-    def mangle_functions(node, **kwds):
+    def mangle_outer_functions(node, **kwds):
         if isinstance(node, ast.FunctionDef):
             return replace_fields(node, name='__' + node.name)
         else:
             return node
 
+    @ast_transformer
+    def mangle_all_functions(node, walk_field, **kwds):
+        if isinstance(node, ast.FunctionDef):
+            new_node = replace_fields(
+                node, name='__' + node.name, body=walk_field(node.body, block_context=True))
+            return new_node
+        else:
+            return node
+
     node = get_ast(dummy_nested)
-    new_node = mangle_functions(node)
+
+    new_node = mangle_outer_functions(node)
+    assert_ast_equal(new_node, get_ast(
+        """
+        def __dummy_nested(x, y):
+            def inner_function(z):
+                return z
+            return inner_function
+        """))
+
+    new_node = mangle_all_functions(node)
     assert_ast_equal(new_node, get_ast(
         """
         def __dummy_nested(x, y):
