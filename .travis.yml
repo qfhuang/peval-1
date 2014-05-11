@@ -5,7 +5,7 @@ python:
   - "3.2"
   - "3.3"
   - "3.4"
-# - "pypy" is temporarily removed until a version with bug 1728 fixed is released
+# - "pypy" is temporarily removed until PyPy2.3 is added to the PPA and is available on TravisCI
 # command to install dependencies
 install:
   - pip install coveralls
