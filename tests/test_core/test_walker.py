@@ -393,12 +393,11 @@ def test_block_autofix():
         """))
 
 
-def test_manual_fields_processing():
+def test_walk_field():
 
     @ast_transformer
-    def increment(node, skip_fields, walk_field, **kwds):
+    def increment(node, walk_field, **kwds):
         if isinstance(node, ast.Assign):
-            skip_fields()
             return replace_fields(node, targets=node.targets, value=walk_field(node.value))
         elif isinstance(node, ast.Num):
             return ast.Num(n=node.n + 1)
@@ -412,5 +411,28 @@ def test_manual_fields_processing():
         """
         def dummy(x, y):
             c = 5
+            a = 2
+        """))
+
+
+def test_skip_fields():
+
+    @ast_transformer
+    def increment(node, skip_fields, **kwds):
+        if isinstance(node, ast.Assign) and node.targets[0].id == 'c':
+            skip_fields()
+
+        if isinstance(node, ast.Num):
+            return ast.Num(n=node.n + 1)
+        else:
+            return node
+
+    node = get_ast(dummy)
+    new_node = increment(node)
+
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy(x, y):
+            c = 4
             a = 2
         """))
