@@ -19,15 +19,12 @@ def eval_function_def(function_def, globals_=None):
 
     assert isinstance(function_def, ast.FunctionDef)
 
-    # Should be done after deepcopy() (since it mutates `function_def`),
-    # but it does not work in PyPy because of bug 1729.
-    ast.fix_missing_locations(function_def)
-
-    # Need to copy `function_def` because in PyPy `compile()` may mutate the tree
-    # (see PyPy bug 1728).
+    # Making a copy before mutating
     module = ast.Module(body=[copy.deepcopy(function_def)])
 
+    ast.fix_missing_locations(module)
     code_object = compile(module, '<nofile>', 'exec')
+
     locals_ = {}
     eval(code_object, globals_, locals_)
     return locals_[function_def.name]

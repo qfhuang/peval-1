@@ -23,7 +23,6 @@ core/function
 -------------
 
 * BUG (function): preserve __future__ imports when re-evaluating functions.
-* BUG (function): when PyPy bug 1729 is fixed, in ``eval_function_def`` deepcopy ``function_def`` before ``ast.fix_missing_locations``.
 
 
 components/evaluate
