@@ -95,10 +95,18 @@ def ast_walker(func):
 
 
 def ast_transformer(func):
+    """
+    A shortcut for ``ast_walker()`` with no state.
+    Returns only the transformed AST.
+    """
     return _Walker(func, transform=True)
 
 
 def ast_inspector(func):
+    """
+    A shortcut for ``ast_walker()`` which does not transform the tree, but only collects data.
+    Returns only the state object.
+    """
     return _Walker(func, inspect=True)
 
 
@@ -108,6 +116,7 @@ class _AttrDict(dict):
         return self[attr]
 
 
+# The AST node fields which contain lists of statements
 _BLOCK_FIELDS = ('body', 'orelse')
 
 
@@ -127,6 +136,12 @@ class _Walker:
         self._current_block_stack = [[]]
 
     def _walk_list(self, lst, state, ctx, block_context=False):
+        """
+        Traverses a list of AST nodes.
+        If ``block_context`` is ``True``, the list contains statements
+        (and therefore is a target for ``prepend()`` calls in nested handlers).
+        """
+
         transformed = False
         new_lst = []
 
@@ -134,9 +149,10 @@ class _Walker:
             self._current_block_stack.append([])
 
         for node in lst:
-            result = self._visit_node(node, state, ctx, list_context=True)
+            result = self._walk_node(node, state, ctx, list_context=True)
 
             if block_context and len(self._current_block_stack[-1]) > 0:
+            # ``prepend()`` was called during ``_walk_node()``
                 transformed = True
                 new_lst.extend(self._current_block_stack[-1])
                 self._current_block_stack[-1] = []
@@ -156,6 +172,8 @@ class _Walker:
 
         if transformed:
             if block_context and len(new_lst) == 0:
+            # If we're in the block context, we can't just return an empty list.
+            # Returning a single ``pass`` instead.
                 return [ast.Pass()]
             else:
                 return new_lst
@@ -163,14 +181,20 @@ class _Walker:
             return lst
 
     def _walk_field(self, value, state, ctx, block_context=False):
+        """
+        Traverses a single AST node field.
+        """
         if isinstance(value, ast.AST):
-            return self._visit_node(value, state, ctx)
+            return self._walk_node(value, state, ctx)
         elif isinstance(value, list):
             return self._walk_list(value, state, ctx, block_context=block_context)
         else:
             return value
 
     def _walk_fields(self, node, state, ctx):
+        """
+        Traverses all fields of an AST node.
+        """
         transformed = False
         new_fields = {}
         for field, value in ast.iter_fields(node):
@@ -204,26 +228,26 @@ class _Walker:
         else:
             return self._callback
 
-    def _visit_node(self, node, state, ctx, list_context=False):
+    def _visit_node(self, handler, node, state, ctx, list_context=False, visiting_after=False):
 
         def prepend(nodes):
             self._current_block_stack[-1].extend(nodes)
 
-        visiting_after = [False]
+        to_visit_after = [False]
         def visit_after():
-            visiting_after[0] = True
+            to_visit_after[0] = True
 
-        skipping_fields = [False]
+        to_skip_fields = [False]
         def skip_fields():
-            skipping_fields[0] = True
+            to_skip_fields[0] = True
 
         def walk_field(value, block_context=False):
             return self._walk_field(value, state, ctx, block_context=block_context)
 
-        handler = self._get_handler(node)
         result = handler(
             node, state=state, ctx=ctx, prepend=prepend,
-            visit_after=visit_after, visiting_after=False,
+            visit_after=None if visiting_after else visit_after,
+            visiting_after=visiting_after,
             skip_fields=skip_fields, walk_field=walk_field)
 
         if list_context:
@@ -240,21 +264,23 @@ class _Walker:
                     expected=expected_str,
                     got=type(result)))
 
-        if isinstance(result, ast.AST) and result is node and not skipping_fields[0]:
+        return result, to_visit_after[0], to_skip_fields[0]
+
+    def _walk_node(self, node, state, ctx, list_context=False):
+        """
+        Traverses an AST node and its fields.
+        """
+
+        handler = self._get_handler(node)
+        result, to_visit_after, to_skip_fields = self._visit_node(
+            handler, node, state, ctx, list_context=list_context, visiting_after=False)
+
+        if isinstance(result, ast.AST) and result is node and not to_skip_fields:
             result = self._walk_fields(result, state, ctx)
 
-        if visiting_after[0] and isinstance(result, ast.AST):
-            result = handler(
-                result, state=state, ctx=ctx, prepend=prepend,
-                visit_after=None, visiting_after=True,
-                skip_fields=skip_fields, walk_field=walk_field)
-
-            if result is not None and not isinstance(result, expected_types):
-                raise TypeError(
-                    "Expected callback return types in {context} are {expected}, got {got}".format(
-                        context=("list context" if list_context else "field context"),
-                        expected=expected_str,
-                        got=type(result)))
+        if isinstance(result, ast.AST) and to_visit_after:
+            result, _, _ = self._visit_node(
+                handler, result, state, ctx, list_context=list_context, visiting_after=True)
 
         return result
 
@@ -264,9 +290,7 @@ class _Walker:
             ctx = _AttrDict(ctx)
 
         if isinstance(node, ast.AST):
-            wrapper_node = ast.Expr(value=node)
-            new_wrapper_node = self._walk_fields(wrapper_node, state, ctx)
-            new_node = new_wrapper_node.value
+            new_node = self._walk_node(node, state, ctx)
         elif isinstance(node, list):
             new_node = self._walk_list(node, state, ctx)
         else:
