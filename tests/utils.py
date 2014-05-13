@@ -5,6 +5,9 @@ import difflib
 
 import astunparse
 
+from peval.utils import unshift
+from peval.core.function import Function
+
 
 def ast_to_source(tree):
     ''' Return python source of AST tree, as a string.
@@ -62,3 +65,34 @@ def assert_ast_equal(test_ast, expected_ast, print_ast=True):
         print_diff(test_source, expected_source)
 
     assert equal
+
+
+def check_component(component, func, additional_bindings=None,
+        expected_source=None, expected_new_bindings=None):
+
+    function = Function.from_object(func)
+    bindings = function.get_external_variables()
+    if additional_bindings is not None:
+        bindings.update(additional_bindings)
+
+    new_tree, new_bindings = component(function.tree, bindings)
+
+    if expected_source is not None:
+        assert_ast_equal(new_tree, ast.parse(unshift(expected_source)).body[0])
+
+    if expected_new_bindings is not None:
+        for k in expected_new_bindings:
+            if k not in new_bindings:
+                print('Expected binding missing:', k)
+
+            binding = new_bindings[k]
+            expected_binding = expected_new_bindings[k]
+
+            # Python 3.2 defines equality for range objects incorrectly
+            # (namely, the result is always False).
+            # So we just test it manually.
+            if sys.version_info < (3, 3) and isinstance(expected_binding, range):
+                assert type(binding) == type(expected_binding)
+                assert list(binding) == list(expected_binding)
+            else:
+                assert binding == expected_binding
