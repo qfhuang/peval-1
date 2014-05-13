@@ -1,19 +1,3 @@
-core/walker
------------
-
-* ?FEATURE: provide arguments to a callback based on it signature (same as ``py.test`` does), instead of extracting them from ``**kwds``.
-* ?FEATURE: redesign ``state`` and ``ctx`` passing:
-
-  * Can we join them?
-  * Depending on the walker type (transform/inspect/transform_inspect),
-    we can require callbacks to return new node/new state/(new node, new_state),
-    thus making the state changing more explicit
-    (and, also, enforcing the walker type and avoiding the danger of an inspection walker
-    transforming nodes).
-    Problem: Python is not Haskell, and creating a new list/set/dict is much less effective
-    than adding an element to the existing one.
-
-
 core/symbol_finder
 ------------------
 
