@@ -187,9 +187,6 @@ def test_if_empty_elimination():
 
 def test_if_visit_only_true_branch():
 
-    # Does not work until the evaluator is rewritten
-    pytest.xfail()
-
     global_state = dict(cnt=0)
 
     @pure_function
