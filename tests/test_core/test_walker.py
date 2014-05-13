@@ -7,7 +7,7 @@ import pytest
 
 from peval.utils import unshift
 from peval.core.pure import pure_add
-from peval.core.walker import ast_inspector, ast_transformer, ast_walker
+from peval.core.walker import ast_inspector, ast_transformer, ast_walker, _Walker
 
 from tests.utils import assert_ast_equal
 
@@ -57,7 +57,7 @@ def dummy_if():
             pass
 
 
-def test_mutable_state():
+def test_inspector():
 
     @ast_inspector
     def collect_numbers(node, state, **kwds):
@@ -83,6 +83,26 @@ def test_walk_list():
     node = get_ast(dummy)
     state = collect_numbers(node.body, state=set())
     assert state == set([1, 4])
+
+
+def test_walker():
+
+    @ast_walker
+    def process_numbers(node, state, **kwds):
+        if isinstance(node, ast.Num):
+            return ast.Num(n=node.n + 1), pure_add(state, node.n)
+        else:
+            return node, state
+
+    node = get_ast(dummy)
+    new_node, state = process_numbers(node, state=set())
+
+    assert state == set([1, 4])
+    assert_ast_equal(new_node, get_ast("""
+        def dummy(x, y):
+            c = 5
+            a = 2
+        """))
 
 
 # Transformations
@@ -171,6 +191,19 @@ def test_remove_field():
 
 # Error checks
 
+def test_walker_contract():
+    """
+    Test that the backend _Walker cannot be created
+    with both ``transform`` and ``inspect`` set to ``False``.
+    """
+
+    def pass_through(node, **kwds):
+        pass
+
+    with pytest.raises(ValueError):
+        w = _Walker(pass_through)
+
+
 def test_wrong_root_type():
 
     @ast_inspector
@@ -218,6 +251,17 @@ def test_wrong_list_return_value():
     node = get_ast(dummy)
     with pytest.raises(TypeError):
         wrong_list_return_value(node)
+
+
+def test_state_to_transformer():
+
+    @ast_transformer
+    def pass_through(node, **kwds):
+        return node
+
+    node = get_ast(dummy)
+    with pytest.raises(ValueError):
+        pass_through(node, state=set())
 
 
 # Handler dispatchers
@@ -398,7 +442,7 @@ def test_block_autofix():
         """))
 
 
-def test_walk_field():
+def test_walk_field_transform():
 
     @ast_transformer
     def increment(node, walk_field, **kwds):
@@ -412,6 +456,47 @@ def test_walk_field():
     node = get_ast(dummy)
     new_node = increment(node)
 
+    assert_ast_equal(new_node, get_ast(
+        """
+        def dummy(x, y):
+            c = 5
+            a = 2
+        """))
+
+
+def test_walk_field_inspect():
+
+    @ast_inspector
+    def names_and_nums(node, state, walk_field, **kwds):
+        if isinstance(node, ast.Assign):
+            state = walk_field(node.value, state)
+            return pure_add(state, node.targets[0].id)
+        elif isinstance(node, ast.Num):
+            return pure_add(state, node.n)
+        else:
+            return state
+
+    node = get_ast(dummy)
+    state = names_and_nums(node, state=set())
+    assert state == set(['a', 'c', 1, 4])
+
+
+def test_walk_field_transform_inspect():
+
+    @ast_walker
+    def names_and_incremented_nums(node, state, walk_field, **kwds):
+        if isinstance(node, ast.Assign):
+            value_node, state = walk_field(node.value, state)
+            new_node = replace_fields(node, targets=node.targets, value=value_node)
+            return new_node, pure_add(state, node.targets[0].id)
+        elif isinstance(node, ast.Num):
+            return ast.Num(n=node.n + 1), pure_add(state, node.n)
+        else:
+            return node, state
+
+    node = get_ast(dummy)
+    new_node, state = names_and_incremented_nums(node, state=set())
+    assert state == set(['a', 'c', 1, 4])
     assert_ast_equal(new_node, get_ast(
         """
         def dummy(x, y):
