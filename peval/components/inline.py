@@ -10,7 +10,7 @@ from peval.core.gensym import GenSym
 from peval.core.walker import ast_walker
 
 
-def inline(tree, constants):
+def inline_functions(tree, constants):
     gen_sym = GenSym.for_tree(tree)
     constants = dict(constants)
     tree, state = inliner(
