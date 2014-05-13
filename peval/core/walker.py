@@ -124,17 +124,27 @@ class _Walker:
 
     def __init__(self, callback, inspect=False, transform=False):
 
-        if inspect and transform:
-            self._call = self._transform_inspect
-        elif inspect:
-            self._call = self._inspect
-        elif transform:
-            self._call = self._transform
+        self._transform = transform
+        self._inspect = inspect
+        if not (self._transform or self._inspect):
+            raise ValueError("At least one of `transform` and `inspect` should be set")
 
         self._current_block_stack = [[]]
 
-        self._default_callback = lambda node, **kwds: node
         self._callbacks = {}
+
+        # These method have different signatures depending on
+        # whether transform and inspect are on,
+        # so for the sake of performance we're using specialized versions of them.
+        if self._transform and self._inspect:
+            self._walk_field_user = self._transform_inspect_field
+            self._default_callback = lambda node, state, **kwds: (node, state)
+        elif self._transform:
+            self._walk_field_user = self._transform_field
+            self._default_callback = lambda node, **kwds: node
+        elif self._inspect:
+            self._walk_field_user = self._inspect_field
+            self._default_callback = lambda node, state, **kwds: state
 
         # Fill the callbacks map.
         # Use the same naming scheme as ast.Visitor and ast.NodeTransformer do.
@@ -156,43 +166,48 @@ class _Walker:
         (and therefore is a target for ``prepend()`` calls in nested handlers).
         """
 
-        transformed = False
-        new_lst = []
+        if self._transform:
+            transformed = False
+            new_lst = []
 
-        if block_context:
-            self._current_block_stack.append([])
+            if block_context:
+                self._current_block_stack.append([])
+
+        new_state = state
 
         for node in lst:
-            result = self._walk_node(node, state, ctx, list_context=True)
+            new_node, new_state = self._walk_node(node, new_state, ctx, list_context=True)
 
-            if block_context and len(self._current_block_stack[-1]) > 0:
+            if self._transform and block_context and len(self._current_block_stack[-1]) > 0:
             # ``prepend()`` was called during ``_walk_node()``
                 transformed = True
                 new_lst.extend(self._current_block_stack[-1])
                 self._current_block_stack[-1] = []
 
-            if isinstance(result, ast.AST):
-                if result is not node:
+            if self._transform:
+                if isinstance(new_node, ast.AST):
+                    if new_node is not node:
+                        transformed = True
+                    new_lst.append(new_node)
+                elif isinstance(new_node, list):
                     transformed = True
-                new_lst.append(result)
-            elif isinstance(result, list):
-                transformed = True
-                new_lst.extend(result)
-            elif result is None:
-                transformed = True
+                    new_lst.extend(new_node)
+                elif new_node is None:
+                    transformed = True
 
-        if block_context:
-            self._current_block_stack.pop()
+        if self._transform:
+            if block_context:
+                self._current_block_stack.pop()
 
-        if transformed:
-            if block_context and len(new_lst) == 0:
-            # If we're in the block context, we can't just return an empty list.
-            # Returning a single ``pass`` instead.
-                return [ast.Pass()]
-            else:
-                return new_lst
+            if transformed:
+                if block_context and len(new_lst) == 0:
+                # If we're in the block context, we can't just return an empty list.
+                # Returning a single ``pass`` instead.
+                    new_lst = [ast.Pass()]
         else:
-            return lst
+            new_lst = lst
+
+        return new_lst, new_state
 
     def _walk_field(self, value, state, ctx, block_context=False):
         """
@@ -203,27 +218,49 @@ class _Walker:
         elif isinstance(value, list):
             return self._walk_list(value, state, ctx, block_context=block_context)
         else:
-            return value
+            return value, state
+
+    def _transform_field(self, ctx, value, block_context=False):
+        return self._walk_field(value, None, ctx, block_context=block_context)[0]
+
+    def _inspect_field(self, ctx, value, state, block_context=False):
+        return self._walk_field(value, state, ctx, block_context=block_context)[1]
+
+    def _transform_inspect_field(self, ctx, value, state, block_context=False):
+        return self._walk_field(value, state, ctx, block_context=block_context)
 
     def _walk_fields(self, node, state, ctx):
         """
         Traverses all fields of an AST node.
         """
-        transformed = False
-        new_fields = {}
+        if self._transform:
+            transformed = False
+            new_fields = {}
+
+        new_state = state
         for field, value in ast.iter_fields(node):
 
             block_context = field in _BLOCK_FIELDS
-            new_value = self._walk_field(value, state, ctx, block_context=block_context)
+            new_value, new_state = self._walk_field(
+                value, new_state, ctx, block_context=block_context)
 
-            new_fields[field] = new_value
-            if new_value is not value:
-                transformed = True
+            if self._transform:
+                new_fields[field] = new_value
+                if new_value is not value:
+                    transformed = True
 
-        if transformed:
-            return type(node)(**new_fields)
+        if self._transform and transformed:
+            return type(node)(**new_fields), new_state
         else:
-            return node
+            return node, new_state
+
+    def _unpack_result(self, result, node, state):
+        if self._transform and self._inspect:
+            return result[0], result[1]
+        elif self._transform:
+            return result, state
+        elif self._inspect:
+            return node, result
 
     def _visit_node(self, handler, node, state, ctx, list_context=False, visiting_after=False):
 
@@ -238,30 +275,34 @@ class _Walker:
         def skip_fields():
             to_skip_fields[0] = True
 
-        def walk_field(value, block_context=False):
-            return self._walk_field(value, state, ctx, block_context=block_context)
+        def walk_field(*args, **kwds):
+            return self._walk_field_user(ctx, *args, **kwds)
 
         result = handler(
-            node, state=state, ctx=ctx, prepend=prepend,
+            node, state=state, ctx=ctx,
+            prepend=prepend,
             visit_after=None if visiting_after else visit_after,
             visiting_after=visiting_after,
-            skip_fields=skip_fields, walk_field=walk_field)
+            skip_fields=skip_fields,
+            walk_field=walk_field)
+        new_node, new_state = self._unpack_result(result, node, state)
 
-        if list_context:
-            expected_types = (ast.AST, list)
-            expected_str = "None, AST, list"
-        else:
-            expected_types = (ast.AST,)
-            expected_str = "None, AST"
+        if self._transform:
+            if list_context:
+                expected_types = (ast.AST, list)
+                expected_str = "None, AST, list"
+            else:
+                expected_types = (ast.AST,)
+                expected_str = "None, AST"
 
-        if result is not None and not isinstance(result, expected_types):
-            raise TypeError(
-                "Expected callback return types in {context} are {expected}, got {got}".format(
-                    context=("list context" if list_context else "field context"),
-                    expected=expected_str,
-                    got=type(result)))
+            if new_node is not None and not isinstance(new_node, expected_types):
+                raise TypeError(
+                    "Expected callback return types in {context} are {expected}, got {got}".format(
+                        context=("list context" if list_context else "field context"),
+                        expected=expected_str,
+                        got=type(new_node)))
 
-        return result, to_visit_after[0], to_skip_fields[0]
+        return new_node, new_state, to_visit_after[0], to_skip_fields[0]
 
     def _walk_node(self, node, state, ctx, list_context=False):
         """
@@ -269,43 +310,36 @@ class _Walker:
         """
 
         handler = self._callbacks.get(type(node), self._default_callback)
-        result, to_visit_after, to_skip_fields = self._visit_node(
+        new_node, new_state, to_visit_after, to_skip_fields = self._visit_node(
             handler, node, state, ctx, list_context=list_context, visiting_after=False)
 
-        if isinstance(result, ast.AST) and result is node and not to_skip_fields:
-            result = self._walk_fields(result, state, ctx)
+        if isinstance(new_node, ast.AST) and new_node is node and not to_skip_fields:
+            new_node, new_state = self._walk_fields(new_node, new_state, ctx)
 
-        if isinstance(result, ast.AST) and to_visit_after:
-            result, _, _ = self._visit_node(
-                handler, result, state, ctx, list_context=list_context, visiting_after=True)
+        if isinstance(new_node, ast.AST) and to_visit_after:
+            new_node, new_state, _, _ = self._visit_node(
+                handler, new_node, new_state, ctx, list_context=list_context, visiting_after=True)
 
-        return result
+        return new_node, new_state
 
-    def _transform_inspect(self, node, state=None, ctx=None):
+    def __call__(self, node, ctx=None, state=None):
+
+        if not self._inspect and state is not None:
+            raise ValueError("Pure transformation walker cannot have a state")
 
         if ctx is not None:
             ctx = _AttrDict(ctx)
 
         if isinstance(node, ast.AST):
-            new_node = self._walk_node(node, state, ctx)
+            new_node, new_state = self._walk_node(node, state, ctx)
         elif isinstance(node, list):
-            new_node = self._walk_list(node, state, ctx)
+            new_node, new_state = self._walk_list(node, state, ctx)
         else:
             raise TypeError("Cannot walk an object of type " + str(type(node)))
 
-        return new_node, state
-
-    def _transform(self, node, ctx=None):
-        return self._transform_inspect(node, ctx=ctx)[0]
-
-    def _inspect(self, node, state=None, ctx=None):
-        new_node, state = self._transform_inspect(node, state=state, ctx=ctx)
-        if new_node is not node:
-            raise ValueError(
-                "AST was transformed in the process of inspection. "
-                "Run `transform_inspect` to retain the changed tree.")
-        return state
-
-    def __call__(self, *args, **kwds):
-        # Redefining __call__ in __init__ does not work since Py3
-        return self._call(*args, **kwds)
+        if self._transform and self._inspect:
+            return new_node, new_state
+        elif self._transform:
+            return new_node
+        elif self._inspect:
+            return new_state

@@ -6,6 +6,7 @@ import operator
 import six
 import sys
 
+from peval.core.pure import pure_update
 from peval.core.gensym import GenSym
 from peval.core.function import Function
 from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
@@ -18,17 +19,20 @@ def evaluate(ast_tree, constants):
     '''
     gen_sym = GenSym.for_tree(ast_tree)
     constants = dict(constants)
-
-    state=dict(gen_sym=gen_sym, constants=constants, mutated_nodes=set())
+    mutated_nodes = set()
 
     while True:
         try:
-            new_ast, state = optimize(ast_tree, state=state)
-        except Rollback:
+            state=dict(gen_sym=gen_sym, constants=constants)
+            new_ast, new_state = optimize(ast_tree, state=state)
+        except Rollback as e:
+            node_id = e.args[0]
+            del constants[node_id]
+            mutated_nodes.add(node_id)
             # we gathered more knowledge and want to try again
             continue
 
-        return new_ast, constants
+        return new_ast, new_state['constants']
 
 
 NUMBER_TYPES = six.integer_types + (float,)
@@ -73,15 +77,17 @@ class optimize:
     def visit_Module(node, state, **kwds):
         # True if old behavior of division operator is active
         # (truediv for floats, floordiv for integers).
-        state['py2_div'] = (six.PY2 and state['constants'].get('division') is not division)
-        return node
+        state = pure_update(
+            state,
+            py2_div=(six.PY2 and state['constants'].get('division') is not division))
+        return node, state
 
     @staticmethod
     def visit_ImportFrom(node, state, **kwds):
         # Detecting 'from __future__ import division'
         if node.module == '__future__' and any(alias.name == 'division' for alias in node.names):
-            state['py2_div'] = False
-        return node
+            state = pure_update(state, py2_div=False)
+        return node, state
 
     @staticmethod
     def visit_Name(node, state, **kwds):
@@ -90,30 +96,31 @@ class optimize:
         if isinstance(node.ctx, ast.Load) and node.id in state['constants']:
             literal_node = get_literal_node(state['constants'][node.id])
             if literal_node is not None:
-                return literal_node
+                return literal_node, state
             else:
-                return node
+                return node, state
         else:
-            return node
+            return node, state
 
     @staticmethod
     def visit_If(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
         ''' Leave only one branch, if possible
         '''
-        new_test = walk_field(node.test)
+        new_test, state = walk_field(node.test, state)
 
         is_known, test_value = get_node_value_if_known(new_test, state['constants'])
         if is_known:
             pass_ = ast.Pass()
             taken_node = node.body if test_value else node.orelse
             if taken_node:
-                return walk_field(taken_node, block_context=True) or pass_
+                new_nodes, state = walk_field(taken_node, state, block_context=True)
+                return new_nodes, state
             else:
-                return pass_
+                return pass_, state
         else:
-            new_body = walk_field(node.body, block_context=True)
-            new_orelse = walk_field(node.orelse, block_context=True)
-            return ast.If(test=new_test, body=new_body, orelse=new_orelse)
+            new_body, state = walk_field(node.body, state, block_context=True)
+            new_orelse, state = walk_field(node.orelse, state, block_context=True)
+            return ast.If(test=new_test, body=new_body, orelse=new_orelse), state
 
     @staticmethod
     def visit_Call(node, state, visit_after, visiting_after, **kwds):
@@ -122,23 +129,24 @@ class optimize:
         '''
         if not visiting_after:
             visit_after()
-            return node
+            return node, state
 
         is_known, fn = get_node_value_if_known(node.func, state['constants'])
         if is_known:
             if _is_pure_fn(fn):
-                state['gen_sym'], state['constants'], node = \
+                gen_sym, constants, node = \
                     _fn_result_node_if_safe(state['gen_sym'], fn, node, state['constants'])
-                return node
+                new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                return node, new_state
             else:
-                return node
+                return node, state
         else:
             assert not node.kwargs and not node.starargs
             # check for mutations from function call:
             # if we don't know it's pure, it can mutate the arguments
             for arg_node in node.args:
                 if is_load_name(arg_node):
-                    _mark_mutated_node(state['mutated_nodes'], state['constants'], arg_node)
+                    _mark_mutated_node(state['constants'], arg_node)
                 else:
                     # The function argument is an expression.
                     # Technically, this expression can return one of its arguments
@@ -148,14 +156,14 @@ class optimize:
             if isinstance(node.func, ast.Attribute):
                 obj_node = node.func.value
                 if is_load_name(obj_node):
-                    _mark_mutated_node(state['mutated_nodes'], state['constants'], obj_node)
+                    _mark_mutated_node(state['constants'], obj_node)
                 else:
                     # Well, it is hard, because it can be something like
                     # Fooo(x).transform() that also mutates x.
                     # Above this case will be handled by argument mutation
                     # and dataflow analysis, but maybe there are other cases?
                     pass
-        return node
+        return node, state
 
     @staticmethod
     def visit_UnaryOp(node, state, visit_after, visiting_after, **kwds):
@@ -163,15 +171,16 @@ class optimize:
         '''
         if not visiting_after:
             visit_after()
-            return node
+            return node, state
 
         if isinstance(node.op, ast.Not):
             is_known, value = get_node_value_if_known(node.operand, state['constants'])
             if is_known:
-                state['gen_sym'], state['constants'], node = \
+                gen_sym, constants, node = \
                     _new_binding_node(state['gen_sym'], state['constants'], not value)
-                return node
-        return node
+                new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                return node, new_state
+        return node, state
 
     @staticmethod
     def visit_BoolOp(node, state, visit_after, visiting_after, skip_fields, walk_field, **kwds):
@@ -181,30 +190,33 @@ class optimize:
 
         new_value_nodes = []
         for value_node in node.values:
-            new_value_node = walk_field(value_node)
+            new_value_node, state = walk_field(value_node, state)
             is_known, value = get_node_value_if_known(new_value_node, state['constants'])
             if is_known:
                 if isinstance(node.op, ast.And):
                     if not value:
-                        state['gen_sym'], state['constants'], new_node = \
+                        gen_sym, constants, new_node = \
                             _new_binding_node(state['gen_sym'], state['constants'], False)
-                        return new_node
+                        new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                        return new_node, new_state
                 elif isinstance(node.op, ast.Or):
                     if value:
-                        state['gen_sym'], state['constants'], new_node = \
+                        gen_sym, constants, new_node = \
                             _new_binding_node(state['gen_sym'], state['constants'], value)
-                        return new_node
+                        new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                        return new_node, new_state
             else:
                 new_value_nodes.append(new_value_node)
         if len(new_value_nodes) == 0:
-            state['gen_sym'], state['constants'], new_node = \
+            gen_sym, constants, new_node = \
                 _new_binding_node(state['gen_sym'], state['constants'],
                     isinstance(node.op, ast.And))
-            return new_node
+            new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+            return new_node, new_state
         elif len(new_value_nodes) == 1:
-            return new_value_nodes[0]
+            return new_value_nodes[0], state
         else:
-            return type(node)(op=node.op, values=new_value_nodes)
+            return type(node)(op=node.op, values=new_value_nodes), state
 
     @staticmethod
     def visit_Compare(node, state, visit_after, visiting_after, **kwds):
@@ -212,16 +224,16 @@ class optimize:
         '''
         if not visiting_after:
             visit_after()
-            return node
+            return node, state
 
         is_known, value = get_node_value_if_known(node.left, state['constants'])
         if not is_known:
-            return node
+            return node, state
         value_list = [value]
         for value_node in node.comparators:
             is_known, value = get_node_value_if_known(value_node, state['constants'])
             if not is_known:
-                return node
+                return node, state
             value_list.append(value)
         for a, b, op in zip(value_list, value_list[1:], node.ops):
             result = {
@@ -233,13 +245,15 @@ class optimize:
                     ast.NotEq: lambda: a != b,
                     }[type(op)]()
             if not result:
-                state['gen_sym'], state['constants'], node = \
+                gen_sym, constants, node = \
                     _new_binding_node(state['gen_sym'], state['constants'], False)
-                return node
+                new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                return node, new_state
 
-        state['gen_sym'], state['constants'], node = \
+        gen_sym, constants, node = \
             _new_binding_node(state['gen_sym'], state['constants'], True)
-        return node
+        new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+        return node, new_state
 
     @staticmethod
     def visit_BinOp(node, state, visit_after, visiting_after, **kwds):
@@ -248,7 +262,7 @@ class optimize:
         '''
         if not visiting_after:
             visit_after()
-            return node
+            return node, state
 
         operations = {
                 ast.Add: operator.add,
@@ -275,10 +289,11 @@ class optimize:
                 is_known, r_value = get_node_value_if_known(node.right, state['constants'])
                 if can_apply(is_known, r_value):
                     value = operations[type(node.op)](l_value, r_value)
-                    state['gen_sym'], state['constants'], node = \
+                    gen_sym, constants, node = \
                         _new_binding_node(state['gen_sym'], state['constants'], value)
-                    return node
-        return node
+                    new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+                    return node, new_state
+        return node, state
 
 
 def _fn_result_node_if_safe(gen_sym, fn, node, constants):
@@ -325,21 +340,19 @@ def _new_binding_node(gen_sym, constants, value):
         return gen_sym, constants, literal_node
     else:
         gen_sym, var_name = gen_sym('binding')
-        constants[var_name] = value
+        constants = pure_update(constants, {var_name: value})
         return gen_sym, constants, ast.Name(id=var_name, ctx=ast.Load())
 
 
-def _mark_mutated_node(mutated_nodes, constants, node):
+def _mark_mutated_node(constants, node):
     ''' Mark that node holding some variable can be mutated,
     and propagate this information up the dataflow graph
     '''
     assert is_load_name(node)
-    mutated_nodes.add(node)
     if node.id in constants:
         # obj can be mutated, and we can not assume we know it
         # so we have to rollback here
-        del constants[node.id]
-        raise Rollback('%s is mutated' % node.id)
+        raise Rollback(node.id)
 
 
 def is_load_name(node):

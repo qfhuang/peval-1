@@ -6,6 +6,7 @@ import sys
 import pytest
 
 from peval.utils import unshift
+from peval.core.pure import pure_add
 from peval.core.walker import ast_inspector, ast_transformer, ast_walker
 
 from tests.utils import assert_ast_equal
@@ -61,8 +62,9 @@ def test_mutable_state():
     @ast_inspector
     def collect_numbers(node, state, **kwds):
         if isinstance(node, ast.Num):
-            state.add(node.n)
-        return node
+            return pure_add(state, node.n)
+        else:
+            return state
 
     node = get_ast(dummy)
     state = collect_numbers(node, state=set())
@@ -74,8 +76,9 @@ def test_walk_list():
     @ast_inspector
     def collect_numbers(node, state, **kwds):
         if isinstance(node, ast.Num):
-            state.add(node.n)
-        return node
+            return pure_add(state, node.n)
+        else:
+            return state
 
     node = get_ast(dummy)
     state = collect_numbers(node.body, state=set())
@@ -172,7 +175,7 @@ def test_wrong_root_type():
 
     @ast_inspector
     def pass_through(node, **kwds):
-        return node
+        pass
 
     with pytest.raises(TypeError):
         pass_through({})
@@ -180,7 +183,7 @@ def test_wrong_root_type():
 
 def test_wrong_root_return_value():
 
-    @ast_inspector
+    @ast_transformer
     def wrong_root_return_value(node, **kwds):
         return 1
 
@@ -191,7 +194,7 @@ def test_wrong_root_return_value():
 
 def test_wrong_field_return_value():
 
-    @ast_inspector
+    @ast_transformer
     def wrong_field_return_value(node, **kwds):
         if isinstance(node, ast.Num):
             return 1
@@ -205,7 +208,7 @@ def test_wrong_field_return_value():
 
 def test_wrong_list_return_value():
 
-    @ast_inspector
+    @ast_transformer
     def wrong_list_return_value(node, **kwds):
         if isinstance(node, ast.Assign):
             return 1
@@ -217,20 +220,6 @@ def test_wrong_list_return_value():
         wrong_list_return_value(node)
 
 
-def test_hidden_mutation():
-
-    @ast_inspector
-    def change_name(node, **kwds):
-        if isinstance(node, ast.Name) and node.id == 'a':
-            return ast.Name(id='b', ctx=node.ctx)
-        else:
-            return node
-
-    node = get_ast(dummy)
-    with pytest.raises(ValueError):
-        state = change_name(node, set())
-
-
 # Handler dispatchers
 
 def test_dispatched_walker():
@@ -239,19 +228,17 @@ def test_dispatched_walker():
     class collect_numbers_with_default:
         @staticmethod
         def visit_Num(node, state, **kwds):
-            state.add(node.n)
-            return node
+            return pure_add(state, node.n)
 
         @staticmethod
         def visit(node, state, **kwds):
-            return node
+            return state
 
     @ast_inspector
     class collect_numbers:
         @staticmethod
         def visit_Num(node, state, **kwds):
-            state.add(node.n)
-            return node
+            return pure_add(state, node.n)
 
     node = get_ast(dummy)
 
@@ -276,9 +263,8 @@ def test_walk_children():
     @ast_transformer
     def mangle_all_functions(node, walk_field, **kwds):
         if isinstance(node, ast.FunctionDef):
-            new_node = replace_fields(
+            return replace_fields(
                 node, name='__' + node.name, body=walk_field(node.body, block_context=True))
-            return new_node
         else:
             return node
 
