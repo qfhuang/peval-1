@@ -67,9 +67,6 @@ def _inline(gen_sym, node, return_name, constants):
         inlined_body.append(ast.Assign(
             targets=[ast.Name(arg_id, ast.Store())],
             value=callee_arg))
-        is_known, value = get_node_value_if_known(callee_arg, constants)
-        if is_known:
-            constants[arg_id] = value
 
     inlined_code = new_fn_ast.body
 
