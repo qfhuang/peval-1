@@ -39,13 +39,11 @@ def ast_walker(func):
     The names of the optional arguments must be exactly as written here,
     but their order is not significant.
 
-    :param state: a mutable state object passed during the initial call.
-        Can be modified inside a handler.
+    :param state: a (supposedly immutable) state object passed during the initial call.
     :param ctx: a (supposedly immutable) dictionary with the global context
         passed during the initial call.
         In addition to normal dictionary methods, its values can be alternatively
         accessed as attributes (e.g. either ``ctx['value']`` or ``ctx.value``).
-        It should not be modified by handlers.
     :param prepend: a function ``prepend(lst)`` which, when called, prepends the list
         of ``ast.AST`` objects to whatever is returned by the handler of the closest
         statement block that includes the current node.
@@ -59,16 +57,12 @@ def ast_walker(func):
         and to ``True`` during the visit caused by ``visit_after()``.
     :param skip_fields: a function of no arguments, which, when called,
         orders the walker not to traverse this node's fields.
-    :param walk_field: a function ``walk_field(value, block_context=False)``,
-        which runs the traversal of the given field value.
+    :param walk_field: a function
+        ``walk_field(value, state, block_context=False) -> (new_value, new_state)``,
+        which traverses the given field value.
         If the value contains a list of statements, ``block_context`` must be set to ``True``,
         so that ``prepend`` could work correctly.
-
-        .. warnning::
-
-            Note that ``state`` may be changed after a call to ``walk_field()``.
-
-    :returns: must return one of:
+    :returns: must return a tuple ``(new_node, new_state)``, where ``new_node`` is one of:
         * ``None``, in which case the corresponding node will be removed from the parent list
           or the parent node field.
         * The passed ``node`` (unchanged).
@@ -96,8 +90,15 @@ def ast_walker(func):
 
 def ast_transformer(func):
     """
-    A shortcut for ``ast_walker()`` with no state.
-    Returns only the transformed AST.
+    A shortcut for ``ast_walker()`` with no changing state.
+    Therefore:
+
+    * the resulting walker returns only the transformed AST;
+    * the ``state`` keyword parameter passed to the walker must be ``None`` (i.e., omitted);
+    * the handler must return only the transformed node
+      instead of a tuple ``(new_node, new_state)``;
+    * ``walk_field`` has the signature
+      ``walk_field(value, block_context=False) -> new_value``.
     """
     return _Walker(func, transform=True)
 
@@ -105,7 +106,13 @@ def ast_transformer(func):
 def ast_inspector(func):
     """
     A shortcut for ``ast_walker()`` which does not transform the tree, but only collects data.
-    Returns only the state object.
+    Therefore:
+
+    * the resulting walker returns only the resulting state;
+    * the handler must return only the new (or the unchanged given) state
+      instead of a tuple ``(new_node, new_state)``;
+    * ``walk_field`` has the signature
+      ``walk_field(value, state, block_context=False) -> new_state``.
     """
     return _Walker(func, inspect=True)
 
