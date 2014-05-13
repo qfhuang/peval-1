@@ -2,14 +2,22 @@ core/walker
 -----------
 
 * ?FEATURE: provide arguments to a callback based on it signature (same as ``py.test`` does), instead of extracting them from ``**kwds``.
-* ?FEATURE: redesign ``state`` and ``ctx`` passing. Can we join them?
+* ?FEATURE: redesign ``state`` and ``ctx`` passing:
+
+  * Can we join them?
+  * Depending on the walker type (transform/inspect/transform_inspect),
+    we can require callbacks to return new node/new state/(new node, new_state),
+    thus making the state changing more explicit
+    (and, also, enforcing the walker type and avoiding the danger of an inspection walker
+    transforming nodes).
+    Problem: Python is not Haskell, and creating a new list/set/dict is much less effective
+    than adding an element to the existing one.
 
 
 core/symbol_finder
 ------------------
 
-* ?BUG: ``find_symbol_usages()`` must include other ways of using a symbol (if
-there are any).
+* ?BUG: ``find_symbol_usages()`` must include other ways of using a symbol (if there are any).
 * BUG: ``find_symbol_creations()`` must include nested ``FunctionDef`` in the list (since they introduce new symbols, just as stores).
   But in ``Optimizer._inlined_fn()`` the whole outer function definition is passed to the mangler.
   As a result, it include the outer function name in the to-mangle list and mangles all its recursive calls, preventing the inliner from recognizing and inlining them.
