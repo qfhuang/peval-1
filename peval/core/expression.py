@@ -1,3 +1,4 @@
+import sys
 import ast
 import operator
 
@@ -90,7 +91,12 @@ def wrap_in_ast(gen_sym, value):
         return gen_sym, value, {}
 
     obj = value.value
-    if isinstance(obj, int):
+    if obj is True or obj is False or obj is None:
+        if sys.version_info >= (3, 4):
+            return gen_sym, ast.NameConstant(value=obj), {}
+        else:
+            return gen_sym, ast.Name(id=str(obj)), {}
+    elif isinstance(obj, int):
         return gen_sym, ast.Num(n=obj), {}
     else:
         gen_sym, name = gen_sym()
