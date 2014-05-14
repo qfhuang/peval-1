@@ -1,12 +1,6 @@
-import ast
-import inspect
-
 from peval.components.fold import fold
 
-
-def get_function_tree(function):
-    src = inspect.getsource(function)
-    return ast.parse(src).body[0]
+from tests.utils import check_component
 
 
 def dummy(x):
@@ -21,7 +15,16 @@ def dummy(x):
 
 
 def test_fold():
-    tree = get_function_tree(dummy)
-    new_tree, new_constants = fold(tree, {})
-    print(new_tree)
-    print(new_constants)
+    check_component(
+        fold, dummy,
+        expected_source="""
+            def dummy(x):
+                a = 1
+                if True:
+                    b = 3
+                    c = 10
+                else:
+                    b = 2
+                    c = 4
+                return 1 + b + c + x
+            """)
