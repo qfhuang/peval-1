@@ -1,6 +1,7 @@
 import ast
 import copy
 
+from peval.utils import replace_fields
 from peval.core.symbol_finder import find_symbol_creations
 from peval.core.walker import ast_transformer
 
@@ -8,12 +9,6 @@ from peval.core.walker import ast_transformer
 def remove_assignments(node, constants):
     node = simplify(node)
     return node, constants
-
-
-def replace_fields(node, **kwds):
-    new_kwds = dict(ast.iter_fields(node))
-    new_kwds.update(kwds)
-    return type(node)(**new_kwds)
 
 
 @ast_transformer

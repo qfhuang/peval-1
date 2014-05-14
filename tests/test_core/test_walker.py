@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from peval.utils import unshift
+from peval.utils import unshift, replace_fields
 from peval.core.pure import pure_add
 from peval.core.walker import ast_inspector, ast_transformer, ast_walker, _Walker
 
@@ -25,12 +25,6 @@ def check_mutation(node, walker):
     assert ast.dump(node) != ast.dump(new_node)
     assert_ast_equal(node, node_ref)
     return new_node
-
-
-def replace_fields(node, **kwds):
-    new_kwds = dict(ast.iter_fields(node))
-    new_kwds.update(kwds)
-    return type(node)(**new_kwds)
 
 
 def dummy(x, y):

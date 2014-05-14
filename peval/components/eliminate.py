@@ -1,17 +1,12 @@
 import ast
 import copy
 
+from peval.utils import replace_fields
 from peval.core.walker import ast_transformer
 
 
 def eliminate(node, constants):
     return _eliminate(node), constants
-
-
-def replace_fields(node, **kwds):
-    new_kwds = dict(ast.iter_fields(node))
-    new_kwds.update(kwds)
-    return type(node)(**new_kwds)
 
 
 @ast_transformer

@@ -70,3 +70,9 @@ def get_node_value_if_known(node, constants):
     elif sys.version_info >= (3, 4, 0) and isinstance(node, ast.NameConstant):
         return known(node.value)
     return False, None
+
+
+def replace_fields(node, **kwds):
+    new_kwds = dict(ast.iter_fields(node))
+    new_kwds.update(kwds)
+    return type(node)(**new_kwds)
