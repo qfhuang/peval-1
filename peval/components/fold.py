@@ -5,6 +5,7 @@ import itertools
 from functools import reduce
 import copy
 
+from peval.utils import replace_fields
 from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
 from peval.core.expression import peval_expression
@@ -95,6 +96,13 @@ def my_reduce(func, seq):
         return reduce(func, seq[1:], seq[0])
 
 
+class CachedExpression:
+
+    def __init__(self, path, node):
+        self.node = node
+        self.path = path
+
+
 def forward_transfer(gen_sym, in_env, statement):
 
     if isinstance(statement, ast.Assign):
@@ -111,10 +119,11 @@ def forward_transfer(gen_sym, in_env, statement):
         else:
             new_value = Value(undefined=True)
         new_values[target] = new_value
-        new_node = ast.Assign(target=target, value=result.node)
 
         out_env = Environment(values=new_values)
-        return gen_sym, out_env, new_node, result.temp_bindings
+        new_exprs = [CachedExpression(path=['value'], node=result.node)]
+
+        return gen_sym, out_env, new_exprs, result.temp_bindings
 
     elif isinstance(statement, (ast.Expr, ast.Return)):
         gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.value)
@@ -124,8 +133,10 @@ def forward_transfer(gen_sym, in_env, statement):
         for name in result.mutated_bindings:
             new_values[name] = Value(undefined=True)
 
+        new_exprs = [CachedExpression(path=['value'], node=result.node)]
         out_env = Environment(values=new_values)
-        return gen_sym, out_env, type(statement)(value=result.node), result.temp_bindings
+
+        return gen_sym, out_env, new_exprs, result.temp_bindings
 
     elif isinstance(statement, ast.If):
         gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.test)
@@ -136,8 +147,10 @@ def forward_transfer(gen_sym, in_env, statement):
             new_values[name] = Value(undefined=True)
 
         out_env = Environment(values=new_values)
-        new_node = ast.If(test=result.node, body=statement.body, orelse=statement.orelse)
-        return gen_sym, out_env, new_node, result.temp_bindings
+
+        new_exprs = [CachedExpression(path=['test'], node=result.node)]
+
+        return gen_sym, out_env, new_exprs, result.temp_bindings
 
     else:
         raise NotImplementedError(type(statement))
@@ -145,9 +158,9 @@ def forward_transfer(gen_sym, in_env, statement):
 
 class State:
 
-    def __init__(self, out_env, node, temp_bindings):
+    def __init__(self, out_env, exprs, temp_bindings):
         self.out_env = out_env
-        self.node = node
+        self.exprs = exprs
         self.temp_bindings = temp_bindings
 
 
@@ -175,30 +188,55 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
             new_in_env = my_reduce(meet_envs, parent_envs)
 
         # propagate information for this basic block
-        gen_sym, new_out_env, new_node, temp_bindings = \
+        gen_sym, new_out_env, new_exprs, temp_bindings = \
             forward_transfer(gen_sym, new_in_env, graph._nodes[node_id].ast_node)
         if new_out_env != states[node_id].out_env:
-            states[node_id] = State(new_out_env, new_node, temp_bindings)
+            states[node_id] = State(new_out_env, new_exprs, temp_bindings)
             todo_forward |= graph.children_of(node_id)
 
     # Converged
-    new_nodes = {}
+    new_exprs = {}
     temp_bindings = {}
     for node_id, state in states.items():
-        new_nodes[node_id] = state.node
+        new_exprs[node_id] = state.exprs
         temp_bindings.update(state.temp_bindings)
 
-    return new_nodes, temp_bindings
+    return new_exprs, temp_bindings
 
 
-def replace_nodes(tree, new_nodes):
-    return _replace_nodes(tree, ctx=dict(new_nodes=new_nodes))
+def replace_exprs(tree, new_exprs):
+    return _replace_exprs(tree, ctx=dict(new_exprs=new_exprs))
+
+
+def replace_by_path(obj, path, new_value):
+
+    if len(path) > 1:
+        if isinstance(ptr, str):
+            sub_obj = getattr(obj, ptr)
+        elif isinstance(ptr, int):
+            sub_obj = obj[ptr]
+        new_value = replace_by_path(sub_obj, path[1:], new_value)
+
+    ptr = path[0]
+    if isinstance(ptr, str):
+        return replace_fields(obj, **{ptr: new_value})
+    elif isinstance(ptr, int):
+        return obj[:ptr] + [new_value] + obj[ptr+1:]
 
 
 @ast_transformer
-def _replace_nodes(node, ctx, **kwds):
-    if id(node) in ctx.new_nodes:
-        return ctx.new_nodes[id(node)]
+def _replace_exprs(node, ctx, walk_field, **kwds):
+    if id(node) in ctx.new_exprs:
+        exprs = ctx.new_exprs[id(node)]
+        visited_fields = set()
+        for expr in exprs:
+            visited_fields.add(expr.path[0])
+            node = replace_by_path(node, expr.path, expr.node)
+
+        for attr, value in ast.iter_fields(node):
+            if attr not in visited_fields:
+                setattr(node, attr, walk_field(value))
+        return node
     else:
         return node
 
@@ -208,7 +246,12 @@ def fold(tree, constants):
     cfg = build_cfg(statements)
     gen_sym = GenSym.for_tree(tree)
     new_nodes, temp_bindings = maximal_fixed_point(gen_sym, cfg.graph, cfg.enter, constants)
+
+    #for nid, exprs in new_nodes.items():
+    #    for expr in exprs:
+    #        print(expr.path, astunparse.dump(expr.node))
+
     constants = dict(constants)
     constants.update(temp_bindings)
-    new_tree = replace_nodes(tree, new_nodes)
+    new_tree = replace_exprs(tree, new_nodes)
     return new_tree, constants
