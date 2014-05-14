@@ -95,7 +95,7 @@ def wrap_in_ast(gen_sym, value):
         if sys.version_info >= (3, 4):
             return gen_sym, ast.NameConstant(value=obj), {}
         else:
-            return gen_sym, ast.Name(id=str(obj)), {}
+            return gen_sym, ast.Name(id=str(obj), ctx=ast.Load()), {}
     elif isinstance(obj, int):
         return gen_sym, ast.Num(n=obj), {}
     else:
