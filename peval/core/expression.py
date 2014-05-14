@@ -146,12 +146,24 @@ def _peval_expression(gen_sym, bindings, node):
         return gen_sym, KnownValue(node.n), {}
     elif isinstance(node, ast.Add):
         return gen_sym, KnownValue(operator.add), {}
+    elif isinstance(node, ast.Lt):
+        return gen_sym, KnownValue(operator.lt), {}
+    elif isinstance(node, ast.Gt):
+        return gen_sym, KnownValue(operator.lt), {}
     elif isinstance(node, ast.BinOp):
         gen_sym, result, temp_bindings = peval_call(
             gen_sym, bindings, node.op, args=[node.left, node.right])
         if isinstance(result, ast.AST):
             del temp_bindings[result.func.id]
             result = ast.BinOp(op=node.op, left=result.args[0], right=result.args[1])
+        return gen_sym, result, temp_bindings
+    elif isinstance(node, ast.Compare):
+        assert len(node.ops) == 1
+        gen_sym, result, temp_bindings = peval_call(
+            gen_sym, bindings, node.ops[0], args=[node.left, node.comparators[0]])
+        if isinstance(result, ast.AST):
+            del temp_bindings[result.func.id]
+            result = ast.Compare(left=result.args[0], ops=node.ops, comparators=[result.args[1]])
         return gen_sym, result, temp_bindings
     else:
         return gen_sym, node, {}
