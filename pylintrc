@@ -92,7 +92,7 @@ function-rgx=[a-z_][a-z0-9_]{2,30}$
 
 # Regular expression which should only match correct method names
 # Changed from default: allow for "visit_*" names, which are common in AST visitors.
-method-rgx=(visit_[A-Z])|([a-z_])[a-z0-9_]{2,30}$
+method-rgx=(handle_[A-Z])|([a-z_])[a-z0-9_]{2,30}$
 
 # Regular expression which should only match correct instance attribute names
 attr-rgx=[a-z_][a-z0-9_]{2,30}$

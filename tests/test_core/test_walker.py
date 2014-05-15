@@ -265,17 +265,17 @@ def test_dispatched_walker():
     @ast_inspector
     class collect_numbers_with_default:
         @staticmethod
-        def visit_Num(node, state, **kwds):
+        def handle_Num(node, state, **kwds):
             return pure_add(state, node.n)
 
         @staticmethod
-        def visit(node, state, **kwds):
+        def handle(node, state, **kwds):
             return state
 
     @ast_inspector
     class collect_numbers:
         @staticmethod
-        def visit_Num(node, state, **kwds):
+        def handle_Num(node, state, **kwds):
             return pure_add(state, node.n)
 
     node = get_ast(dummy)

@@ -6,13 +6,15 @@ Inspired by the ``Walker`` class from ``macropy``.
 """
 
 import ast
-import types
+
+from peval.core.dispatcher import Dispatcher
 
 
-def ast_walker(func):
+def ast_walker(handler):
     """
     A generic AST walker decorator.
     Decorates either a function or a class (if dispatching based on node type is required).
+    See :py:class:`Dispatcher` for the details of the required class structure.
 
     Returns a callable with the signature
 
@@ -27,7 +29,7 @@ def ast_walker(func):
         as the corresponding parameter.
         Does not mutate ``node``.
 
-    If ``func`` is a function, it will be called for every node during the AST traversal
+    If ``handler`` is a function, it will be called for every node during the AST traversal
     (depth-first, pre-order).
     It must have the signature
 
@@ -79,16 +81,12 @@ def ast_walker(func):
 
     If the decorator target is a class, it must contain several static methods
     with the signatures as above.
-    During traversal, for a node with the type ``tp``, the call will be dispatched
-    to the method with the name ``visit_<tp>()`` if it exists
-    (e.g., ``visit_FunctionDef()`` for ``ast.FunctionDef``),
-    otherwise to the method ``visit()`` if it exists,
-    otherwise to the built-in default function which just returns the node and does nothing.
+    The default handler is a "pass-through" function that does not change the node or the state.
     """
-    return _Walker(func, transform=True, inspect=True)
+    return _Walker(handler, transform=True, inspect=True)
 
 
-def ast_transformer(func):
+def ast_transformer(handler):
     """
     A shortcut for ``ast_walker()`` with no changing state.
     Therefore:
@@ -100,10 +98,10 @@ def ast_transformer(func):
     * ``walk_field`` has the signature
       ``walk_field(value, block_context=False) -> new_value``.
     """
-    return _Walker(func, transform=True)
+    return _Walker(handler, transform=True)
 
 
-def ast_inspector(func):
+def ast_inspector(handler):
     """
     A shortcut for ``ast_walker()`` which does not transform the tree, but only collects data.
     Therefore:
@@ -114,7 +112,7 @@ def ast_inspector(func):
     * ``walk_field`` has the signature
       ``walk_field(value, state, block_context=False) -> new_state``.
     """
-    return _Walker(func, inspect=True)
+    return _Walker(handler, inspect=True)
 
 
 class _AttrDict(dict):
@@ -129,7 +127,7 @@ _BLOCK_FIELDS = ('body', 'orelse')
 
 class _Walker:
 
-    def __init__(self, callback, inspect=False, transform=False):
+    def __init__(self, handler, inspect=False, transform=False):
 
         self._transform = transform
         self._inspect = inspect
@@ -138,33 +136,20 @@ class _Walker:
 
         self._current_block_stack = [[]]
 
-        self._callbacks = {}
-
         # These method have different signatures depending on
         # whether transform and inspect are on,
         # so for the sake of performance we're using specialized versions of them.
         if self._transform and self._inspect:
             self._walk_field_user = self._transform_inspect_field
-            self._default_callback = lambda node, state, **kwds: (node, state)
+            default_handler = lambda node, state, **kwds: (node, state)
         elif self._transform:
             self._walk_field_user = self._transform_field
-            self._default_callback = lambda node, **kwds: node
+            default_handler = lambda node, **kwds: node
         elif self._inspect:
             self._walk_field_user = self._inspect_field
-            self._default_callback = lambda node, state, **kwds: state
+            default_handler = lambda node, state, **kwds: state
 
-        # Fill the callbacks map.
-        # Use the same naming scheme as ast.Visitor and ast.NodeTransformer do.
-        if isinstance(callback, types.FunctionType):
-            self._default_callback = callback
-        else:
-            if hasattr(callback, 'visit'):
-                self._default_callback = getattr(callback, 'visit')
-            for attr in vars(callback):
-                if attr.startswith('visit_'):
-                    typename = attr[6:]
-                    if hasattr(ast, typename):
-                        self._callbacks[getattr(ast, typename)] = getattr(callback, attr)
+        self._handler = Dispatcher(handler, default_handler=default_handler)
 
     def _walk_list(self, lst, state, ctx, block_context=False):
         """
@@ -269,7 +254,7 @@ class _Walker:
         elif self._inspect:
             return node, result
 
-    def _visit_node(self, handler, node, state, ctx, list_context=False, visiting_after=False):
+    def _handle_node(self, node, state, ctx, list_context=False, visiting_after=False):
 
         def prepend(nodes):
             self._current_block_stack[-1].extend(nodes)
@@ -285,7 +270,7 @@ class _Walker:
         def walk_field(*args, **kwds):
             return self._walk_field_user(ctx, *args, **kwds)
 
-        result = handler(
+        result = self._handler(
             node, state=state, ctx=ctx,
             prepend=prepend,
             visit_after=None if visiting_after else visit_after,
@@ -316,16 +301,15 @@ class _Walker:
         Traverses an AST node and its fields.
         """
 
-        handler = self._callbacks.get(type(node), self._default_callback)
-        new_node, new_state, to_visit_after, to_skip_fields = self._visit_node(
-            handler, node, state, ctx, list_context=list_context, visiting_after=False)
+        new_node, new_state, to_visit_after, to_skip_fields = self._handle_node(
+            node, state, ctx, list_context=list_context, visiting_after=False)
 
         if isinstance(new_node, ast.AST) and new_node is node and not to_skip_fields:
             new_node, new_state = self._walk_fields(new_node, new_state, ctx)
 
         if isinstance(new_node, ast.AST) and to_visit_after:
-            new_node, new_state, _, _ = self._visit_node(
-                handler, new_node, new_state, ctx, list_context=list_context, visiting_after=True)
+            new_node, new_state, _, _ = self._handle_node(
+                new_node, new_state, ctx, list_context=list_context, visiting_after=True)
 
         return new_node, new_state
 

@@ -44,11 +44,11 @@ components/evaluate
   But this only applies to "bad" objects, because not taking a copy of a mutable argument and then mutate it silently is really error-prone.
 * ?BUG: do we need to check for builtin redefinitions?
 * ?BUG: ``_mark_mutated_node()`` needs to somehow propagate that information up the data flow graph.
-* FEATURE: in ``visit_BinOp()``, we can apply binary operations to all objects that support them, not only to NUMBER_TYPES.
+* FEATURE: in ``handle_BinOp()``, we can apply binary operations to all objects that support them, not only to NUMBER_TYPES.
 * ?FEATURE: base optimizations on the data flow graph, not on AST --- it is a higher level abstraction and has less details insignificant for the optimizer.
 * FEATURE: add partial application for varargs and kwargs (see ``assert`` in ``_fn_result_node_if_safe()``).
-* FEATURE: add support for varargs and kwargs in ``visit_Call()`` (see ``assert`` there)
-* ?FEATURE: in ``visit_Compare()``, we may be able to evaluate the result if only some of the arguments are known.
+* FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
+* ?FEATURE: in ``handle_Compare()``, we may be able to evaluate the result if only some of the arguments are known.
 
 
 components/prune_cfg

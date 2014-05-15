@@ -50,7 +50,7 @@ def filter_block(node_list):
 class simplify_loops:
 
     @staticmethod
-    def visit_While(node, **kwds):
+    def handle_While(node, **kwds):
         last_node = node.body[-1]
         unconditional_jump = isinstance(last_node, (ast.Break, ast.Raise, ast.Return))
         if unconditional_jump:
@@ -67,7 +67,7 @@ class simplify_loops:
 class remove_unreachable_branches:
 
     @staticmethod
-    def visit_If(node, ctx, walk_field, **kwds):
+    def handle_If(node, ctx, walk_field, **kwds):
         is_known, test = get_node_value_if_known(node.test, ctx.bindings)
         if is_known:
             taken_node = node.body if test else node.orelse

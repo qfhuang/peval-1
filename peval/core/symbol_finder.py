@@ -15,22 +15,22 @@ else:
 class _find_symbol_creations:
 
     @staticmethod
-    def visit_arg(node, state, **kwds):
+    def handle_arg(node, state, **kwds):
         return pure_add(state, node.arg)
 
     @staticmethod
-    def visit_Name(node, state, **kwds):
+    def handle_Name(node, state, **kwds):
         if isinstance(node.ctx, STORE_CTXS):
             return pure_add(state, node.id)
         else:
             return state
 
     @staticmethod
-    def visit_ClassDef(node, state, **kwds):
+    def handle_ClassDef(node, state, **kwds):
         return pure_add(state, node.name)
 
     @staticmethod
-    def visit_alias(node, state, **kwds):
+    def handle_alias(node, state, **kwds):
         name = node.asname if node.asname else node.name
         if '.' in name:
             name = name.split('.', 1)[0]
@@ -47,7 +47,7 @@ def find_symbol_creations(tree):
 class _find_symbol_usages:
 
     @staticmethod
-    def visit_Name(node, state, **kwds):
+    def handle_Name(node, state, **kwds):
         if isinstance(node.ctx, ast.Load):
             return pure_add(state, node.id)
         else:

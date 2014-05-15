@@ -16,7 +16,7 @@ class simplify:
     ''' Simplify AST, given information about what variables are known
     '''
     @staticmethod
-    def visit_FunctionDef(node, **kwds):
+    def handle_FunctionDef(node, **kwds):
         return replace_fields(node, body=_remove_assignments(node.body))
 
 
@@ -66,7 +66,7 @@ class _replace:
     '''
 
     @staticmethod
-    def visit_Name(node, ctx, **kwds):
+    def handle_Name(node, ctx, **kwds):
         if isinstance(node.ctx, ast.Load) and node.id == ctx.var_name:
             return ctx.value_node
         else:

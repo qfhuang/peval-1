@@ -36,21 +36,21 @@ class _mangle:
     '''
 
     @staticmethod
-    def visit_arg(node, state, ctx, **kwds):
+    def handle_arg(node, state, ctx, **kwds):
         gen_sym, new_node, mangled = _visit_local(
             state['gen_sym'], node, ctx.fn_locals, state['mangled'])
         new_state = pure_update(state, gen_sym=gen_sym, mangled=mangled)
         return new_node, new_state
 
     @staticmethod
-    def visit_Name(node, state, ctx, **kwds):
+    def handle_Name(node, state, ctx, **kwds):
         gen_sym, new_node, mangled = _visit_local(
             state['gen_sym'], node, ctx.fn_locals, state['mangled'])
         new_state = pure_update(state, gen_sym=gen_sym, mangled=mangled)
         return new_node, new_state
 
     @staticmethod
-    def visit_Return(node, state, ctx, **kwds):
+    def handle_Return(node, state, ctx, **kwds):
         ''' Substitute return with return variable assignment + break
         '''
         new_value, sub_state = _mangle(node.value, state=state, ctx=ctx)
