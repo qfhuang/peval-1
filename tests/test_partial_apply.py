@@ -65,21 +65,21 @@ def test_kwargs_handling():
     assert partial_apply(args_kwargs, 2, c=4)(6) == 2.0 / 6 * 4
 
 
+def stupid_power(n, x):
+    if not isinstance(n, int) or n < 0:
+        raise ValueError('Base should be a positive integer')
+    else:
+        if n == 0:
+            return 1
+        if n == 1:
+            return x
+        v = 1
+        for _ in xrange(n):
+            v *= x
+        return v
+
+
 def test_if_on_stupid_power():
-
-    def stupid_power(n, x):
-        if not isinstance(n, int) or n < 0:
-            raise ValueError('Base should be a positive integer')
-        else:
-            if n == 0:
-                return 1
-            if n == 1:
-                return x
-            v = 1
-            for _ in xrange(n):
-                v *= x
-            return v
-
     for n in ('foo', 0, 1, 2, 3):
         for x in [0, 1, 0.01, 5e10]:
             check_partial_fn(stupid_power, lambda: dict(n=n), lambda: {'x': x })
