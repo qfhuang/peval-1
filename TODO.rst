@@ -51,6 +51,13 @@ components/evaluate
 * ?FEATURE: in ``visit_Compare()``, we may be able to evaluate the result if only some of the arguments are known.
 
 
+components/prune_cfg
+--------------------
+
+* FEATURE: we can detect unconditional jumps in ``for`` loops as well, but in order to remove the loop, we need the loop unrolling functionality.
+* BUG: evaluating ``bool(node.test)`` is potentially (albeint unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
+
+
 components/inline
 -----------------
 

@@ -77,8 +77,12 @@ def check_component(component, func, additional_bindings=None,
 
     new_tree, new_bindings = component(function.tree, bindings)
 
-    if expected_source is not None:
-        assert_ast_equal(new_tree, ast.parse(unshift(expected_source)).body[0])
+    if expected_source is None:
+        expected_ast = function.tree
+    else:
+        expected_ast = ast.parse(unshift(expected_source)).body[0]
+
+    assert_ast_equal(new_tree, expected_ast)
 
     if expected_new_bindings is not None:
         for k in expected_new_bindings:
