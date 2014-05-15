@@ -96,7 +96,9 @@ def wrap_in_ast(gen_sym, value):
             return gen_sym, ast.NameConstant(value=obj), {}
         else:
             return gen_sym, ast.Name(id=str(obj), ctx=ast.Load()), {}
-    elif isinstance(obj, int):
+    elif type(obj) in (str,):
+        return gen_sym, ast.Str(s=obj), {}
+    elif type(obj) in (int, float):
         return gen_sym, ast.Num(n=obj), {}
     else:
         gen_sym, name = gen_sym()
@@ -146,10 +148,21 @@ def _peval_expression(gen_sym, bindings, node):
         return gen_sym, KnownValue(node.n), {}
     elif isinstance(node, ast.Add):
         return gen_sym, KnownValue(operator.add), {}
+    elif isinstance(node, ast.Mult):
+        return gen_sym, KnownValue(operator.mul), {}
+    elif isinstance(node, ast.Div):
+        return gen_sym, KnownValue(operator.div), {}
+    elif isinstance(node, ast.Mod):
+        return gen_sym, KnownValue(operator.mod), {}
+    elif isinstance(node, ast.Sub):
+        return gen_sym, KnownValue(operator.sub), {}
     elif isinstance(node, ast.Lt):
         return gen_sym, KnownValue(operator.lt), {}
     elif isinstance(node, ast.Gt):
         return gen_sym, KnownValue(operator.lt), {}
+    elif isinstance(node, ast.Call):
+        return peval_call(
+            gen_sym, bindings, node.func, args=node.args)
     elif isinstance(node, ast.BinOp):
         gen_sym, result, temp_bindings = peval_call(
             gen_sym, bindings, node.op, args=[node.left, node.right])
