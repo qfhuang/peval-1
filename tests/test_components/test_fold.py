@@ -22,7 +22,7 @@ def test_fold():
         expected_source="""
             def dummy(x):
                 a = 1
-                if True:
+                if False:
                     b = 3
                     c = 10
                 else:

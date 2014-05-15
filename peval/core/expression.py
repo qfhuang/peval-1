@@ -2,6 +2,8 @@ import sys
 import ast
 import operator
 
+from peval.core.dispatcher import Dispatcher
+
 
 class KnownValue:
 
@@ -137,40 +139,71 @@ def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
     return function(*args, **kwds)
 
 
-def _peval_expression(gen_sym, bindings, node):
-    # Returns: gen_sym, AST/KnownValue, new_bindings
-    if isinstance(node, ast.Name):
+@Dispatcher
+class _peval_expression_dispatch:
+
+    @staticmethod
+    def handle(node, gen_sym, bindings):
+        return gen_sym, node, bindings
+
+    @staticmethod
+    def handle_Name(node, gen_sym, bindings):
         if node.id in bindings:
             return gen_sym, KnownValue(bindings[node.id]), {}
         else:
             return gen_sym, node, {}
-    elif isinstance(node, ast.Num):
+
+    @staticmethod
+    def handle_Num(node, gen_sym, bindings):
         return gen_sym, KnownValue(node.n), {}
-    elif isinstance(node, ast.Add):
+
+    @staticmethod
+    def handle_Add(node, gen_sym, bindings):
         return gen_sym, KnownValue(operator.add), {}
-    elif isinstance(node, ast.Mult):
-        return gen_sym, KnownValue(operator.mul), {}
-    elif isinstance(node, ast.Div):
-        return gen_sym, KnownValue(operator.div), {}
-    elif isinstance(node, ast.Mod):
-        return gen_sym, KnownValue(operator.mod), {}
-    elif isinstance(node, ast.Sub):
+
+    @staticmethod
+    def handle_Sub(node, gen_sym, bindings):
         return gen_sym, KnownValue(operator.sub), {}
-    elif isinstance(node, ast.Lt):
+
+    @staticmethod
+    def handle_Mult(node, gen_sym, bindings):
+        return gen_sym, KnownValue(operator.mul), {}
+
+    @staticmethod
+    def handle_Div(node, gen_sym, bindings):
+        if sys.version_info > (3,):
+            div = operator.truediv
+        else:
+            div = operator.div
+        return gen_sym, KnownValue(div), {}
+
+    @staticmethod
+    def handle_Mod(node, gen_sym, bindings):
+        return gen_sym, KnownValue(operator.mod), {}
+
+    @staticmethod
+    def handle_Lt(node, gen_sym, bindings):
         return gen_sym, KnownValue(operator.lt), {}
-    elif isinstance(node, ast.Gt):
-        return gen_sym, KnownValue(operator.lt), {}
-    elif isinstance(node, ast.Call):
-        return peval_call(
-            gen_sym, bindings, node.func, args=node.args)
-    elif isinstance(node, ast.BinOp):
+
+    @staticmethod
+    def handle_Gt(node, gen_sym, bindings):
+        return gen_sym, KnownValue(operator.gt), {}
+
+    @staticmethod
+    def handle_Call(node, gen_sym, bindings):
+        return peval_call(gen_sym, bindings, node.func, args=node.args)
+
+    @staticmethod
+    def handle_BinOp(node, gen_sym, bindings):
         gen_sym, result, temp_bindings = peval_call(
             gen_sym, bindings, node.op, args=[node.left, node.right])
         if isinstance(result, ast.AST):
             del temp_bindings[result.func.id]
             result = ast.BinOp(op=node.op, left=result.args[0], right=result.args[1])
         return gen_sym, result, temp_bindings
-    elif isinstance(node, ast.Compare):
+
+    @staticmethod
+    def handle_Compare(node, gen_sym, bindings):
         assert len(node.ops) == 1
         gen_sym, result, temp_bindings = peval_call(
             gen_sym, bindings, node.ops[0], args=[node.left, node.comparators[0]])
@@ -178,8 +211,10 @@ def _peval_expression(gen_sym, bindings, node):
             del temp_bindings[result.func.id]
             result = ast.Compare(left=result.args[0], ops=node.ops, comparators=[result.args[1]])
         return gen_sym, result, temp_bindings
-    else:
-        return gen_sym, node, {}
+
+
+def _peval_expression(gen_sym, bindings, node):
+    return _peval_expression_dispatch(node, gen_sym, bindings)
 
 
 def peval_expression(gen_sym, bindings, node):
