@@ -21,7 +21,7 @@ class immutabledict(dict):
     """
 
     def clear(self):
-        return padict()
+        return self.__class__()
 
     def copy(self):
         return self
@@ -45,19 +45,19 @@ class immutabledict(dict):
         else:
             return self[key], self
 
-    def __delitem__(self, key, item):
-        raise AttributeError("Pure dict does not support mutating item deletion")
+    def __delitem__(self, key):
+        raise AttributeError("Item deletion syntax is not available for an immutable dict")
 
     def del_(self, key):
         if key in self:
             new_dict = self.__class__(self)
-            dict.__delitem__(new_dict, key, value)
+            dict.__delitem__(new_dict, key)
             return new_dict
         else:
             return self
 
     def __setitem__(self, key, item):
-        raise AttributeError("Pure dict does not support mutating item setting")
+        raise AttributeError("Item assignment syntax is not available for an immutable dict")
 
     def set(self, key, value):
         if key in self and self[key] is value:
@@ -105,8 +105,8 @@ class immutableadict(immutabledict):
     def __getattr__(self, attr):
         return self[attr]
 
-    def __setattr__(self, attr):
-        raise AttributeError("Pure dict does not support mutating attribute setting")
+    def __setattr__(self, attr, value):
+        raise AttributeError("Attribute assignment syntax is not available for an immutable dict")
 
     def __repr__(self):
         return "immutableadict(" + dict.__repr__(self) + ")"
@@ -136,3 +136,93 @@ class immutableset(set):
 
     def copy(self):
         return self
+
+    def discard(self, elem):
+        if elem in self:
+            new_set = self.__class__(self)
+            set.discard(new_set, elem)
+            return new_set
+        else:
+            return self
+
+    def pop(self):
+        new_set = self.__class__(self)
+        elem = set.pop(new_set)
+        return elem, new_set
+
+    def remove(self, elem):
+        new_set = self.__class__(self)
+        set.remove(new_set, elem)
+        return new_set
+
+
+    def difference(self, *args):
+        res = self.__class__(set.difference(self, *args))
+        if res == self:
+            return self
+        else:
+            return res
+
+    def __sub__(self, other):
+        return self.difference(other)
+
+    def difference_update(self, *args):
+        return self.difference(*args)
+
+    def __isub__(self, *args):
+        raise AttributeError("`-=` is not available for an immutable set")
+
+
+    def union(self, *args):
+        res = self.__class__(set.union(self, *args))
+        if res == self:
+            return self
+        else:
+            return res
+
+    def __or__(self, other):
+        return self.union(other)
+
+    def update(self, *args):
+        return self.union(*args)
+
+    def __ior__(self, *args):
+        raise AttributeError("`|=` is not available for an immutable set")
+
+
+    def intersection(self, *args):
+        res = self.__class__(set.intersection(self, *args))
+        if res == self:
+            return self
+        else:
+            return res
+
+    def __and__(self, other):
+        return self.intersection(other)
+
+    def intersection_update(self, *args):
+        return self.intersection(*args)
+
+    def __iand__(self, *args):
+        raise AttributeError("`&=` is not available for an immutable set")
+
+
+    def symmetric_difference(self, *args):
+        res = self.__class__(set.symmetric_difference(self, *args))
+        if res == self:
+            return self
+        else:
+            return res
+
+    def __xor__(self, other):
+        return self.symmetric_difference(other)
+
+    def symmetric_difference_update(self, *args):
+        return self.symmetric_difference(*args)
+
+    def __ixor__(self, *args):
+        raise AttributeError("`^=` is not available for an immutable set")
+
+
+    def __repr__(self):
+        return "immutableset(" + set.__repr__(self) + ")"
