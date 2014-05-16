@@ -121,12 +121,6 @@ def ast_inspector(handler):
     return _Walker(handler, inspect=True)
 
 
-class _AttrDict(dict):
-
-    def __getattr__(self, attr):
-        return self[attr]
-
-
 # The AST node fields which contain lists of statements
 _BLOCK_FIELDS = ('body', 'orelse')
 
