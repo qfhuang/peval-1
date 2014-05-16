@@ -20,7 +20,7 @@ def check_peval_expression(source, bindings, expected_source,
     expected_tree = expression_ast(expected_source)
 
     gen_sym = GenSym()
-    gen_sym, result = peval_expression(gen_sym, bindings, source_tree)
+    gen_sym, result = peval_expression(gen_sym, source_tree, bindings)
 
     assert result.fully_evaluated == fully_evaluated
     if fully_evaluated:

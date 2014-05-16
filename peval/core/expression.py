@@ -33,14 +33,14 @@ def peval_call(gen_sym, bindings, function, args=[], keywords=[], starargs=None,
     can_eval = True
     temp_bindings = {}
 
-    gen_sym, function_value, tb = _peval_expression(gen_sym, bindings, function)
+    gen_sym, function_value, tb = _peval_expression(gen_sym, function, bindings)
     if isinstance(function_value, ast.AST):
         can_eval = False
         temp_bindings.update(tb)
 
     args_values = []
     for arg in args:
-        gen_sym, value, tb = _peval_expression(gen_sym, bindings, arg)
+        gen_sym, value, tb = _peval_expression(gen_sym, arg, bindings)
         args_values.append(value)
         if isinstance(value, ast.AST):
             can_eval = False
@@ -213,12 +213,12 @@ class _peval_expression_dispatch:
         return gen_sym, result, temp_bindings
 
 
-def _peval_expression(gen_sym, bindings, node):
+def _peval_expression(gen_sym, node, bindings):
     return _peval_expression_dispatch(node, gen_sym, bindings)
 
 
-def peval_expression(gen_sym, bindings, node):
-    gen_sym, result, temp_bindings = _peval_expression(gen_sym, bindings, node)
+def peval_expression(gen_sym, node, bindings):
+    gen_sym, result, temp_bindings = _peval_expression(gen_sym, node, bindings)
     if isinstance(result, ast.AST):
         eval_result = EvaluationResult(
             fully_evaluated=False,

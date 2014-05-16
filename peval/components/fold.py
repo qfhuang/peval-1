@@ -107,7 +107,7 @@ def forward_transfer(gen_sym, in_env, statement):
 
     if isinstance(statement, ast.Assign):
         target = statement.targets[0].id
-        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.value)
+        gen_sym, result = peval_expression(gen_sym, statement.value, in_env.known_values())
 
         new_values=dict(in_env.values)
 
@@ -126,7 +126,7 @@ def forward_transfer(gen_sym, in_env, statement):
         return gen_sym, out_env, new_exprs, result.temp_bindings
 
     elif isinstance(statement, (ast.Expr, ast.Return)):
-        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.value)
+        gen_sym, result = peval_expression(gen_sym, statement.value, in_env.known_values())
 
         new_values=dict(in_env.values)
 
@@ -139,7 +139,7 @@ def forward_transfer(gen_sym, in_env, statement):
         return gen_sym, out_env, new_exprs, result.temp_bindings
 
     elif isinstance(statement, ast.If):
-        gen_sym, result = peval_expression(gen_sym, in_env.known_values(), statement.test)
+        gen_sym, result = peval_expression(gen_sym, statement.test, in_env.known_values())
 
         new_values=dict(in_env.values)
 
