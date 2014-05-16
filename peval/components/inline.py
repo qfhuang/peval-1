@@ -29,8 +29,8 @@ def inliner(node, state, prepend, **kwds):
 
         is_known, fn = get_node_value_if_known(node.func, constants)
         if is_known and is_inlined_fn(fn):
-            gen_sym, return_name = gen_sym('return')
-            gen_sym, inlined_body, constants = _inline(gen_sym, node, return_name, constants)
+            return_name, gen_sym = gen_sym('return')
+            inlined_body, gen_sym, constants = _inline(node, gen_sym, return_name, constants)
 
             prepend(inlined_body)
             new_state = state.update(gen_sym=gen_sym, constants=constants)
@@ -48,7 +48,7 @@ def is_inlined_fn(fn):
     return getattr(fn, '_peval_inline', False)
 
 
-def _inline(gen_sym, node, return_name, constants):
+def _inline(node, gen_sym, return_name, constants):
     ''' Return a list of nodes, representing inlined function call,
     and a node, repesenting the variable that stores result.
     '''
@@ -72,7 +72,7 @@ def _inline(gen_sym, node, return_name, constants):
     if isinstance(inlined_code[-1], ast.Break): # single return
         inlined_body.extend(inlined_code[:-1])
     else: # multiple returns - wrap in "while"
-        gen_sym, while_var = gen_sym('while')
+        while_var, gen_sym = gen_sym('while')
         inlined_body.extend([
             ast.Assign(
                 targets=[ast.Name(id=while_var, ctx=ast.Store())],
@@ -87,4 +87,4 @@ def _inline(gen_sym, node, return_name, constants):
                 orelse=[])
             ])
 
-    return gen_sym, inlined_body, constants
+    return inlined_body, gen_sym, constants

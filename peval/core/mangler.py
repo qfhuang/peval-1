@@ -19,7 +19,7 @@ def _visit_local(gen_sym, node, to_mangle, mangled):
         if node_id in mangled:
             mangled_id = mangled[node_id]
         else:
-            gen_sym, mangled_id = gen_sym('mangled')
+            mangled_id, gen_sym = gen_sym('mangled')
             mangled = mangled.set(node_id, mangled_id)
 
         if is_name:

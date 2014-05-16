@@ -19,4 +19,4 @@ class GenSym(object):
             if name not in self._taken_names:
                 break
 
-        return GenSym(taken_names=self._taken_names, counter=self._counter), name
+        return name, GenSym(taken_names=self._taken_names, counter=self._counter)

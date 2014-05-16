@@ -102,7 +102,7 @@ def wrap_in_ast(value, state):
     elif type(obj) in (int, float):
         return ast.Num(n=obj), state
     else:
-        gen_sym, name = state.gen_sym()
+        name, gen_sym = state.gen_sym()
         new_state = state.update(
             gen_sym=gen_sym,
             temp_bindings=state.temp_bindings.set(name, obj))
