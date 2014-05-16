@@ -4,20 +4,6 @@ General
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
 
 
-core/pure
----------
-
-* FEATURE: add pure list, set and dictionary objects to be used as parts of walker states
-
-
-core/walker
------------
-
-* FEATURE: make ``state`` a pure dictionary object
-  (to avoid the need to import ``core.pure`` and use ``pure_update``).
-  Probably ``ctx`` can be made one as well.
-
-
 core/symbol_finder
 ------------------
 

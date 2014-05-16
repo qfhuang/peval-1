@@ -3,7 +3,6 @@ import copy
 import sys
 
 from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
-from peval.core.pure import pure_update
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
@@ -34,7 +33,7 @@ def inliner(node, state, prepend, **kwds):
             gen_sym, inlined_body, constants = _inline(gen_sym, node, return_name, constants)
 
             prepend(inlined_body)
-            new_state = pure_update(state, gen_sym=gen_sym, constants=constants)
+            new_state = state.update(gen_sym=gen_sym, constants=constants)
 
             return ast.Name(id=return_name, ctx=ast.Load()), new_state
         else:

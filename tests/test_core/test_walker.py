@@ -6,7 +6,7 @@ import sys
 import pytest
 
 from peval.utils import unshift, replace_fields
-from peval.core.pure import pure_add
+from peval.core.immutable import immutableset
 from peval.core.walker import ast_inspector, ast_transformer, ast_walker, _Walker
 
 from tests.utils import assert_ast_equal
@@ -56,13 +56,13 @@ def test_inspector():
     @ast_inspector
     def collect_numbers(node, state, **kwds):
         if isinstance(node, ast.Num):
-            return pure_add(state, node.n)
+            return state.update(numbers=state.numbers.add(node.n))
         else:
             return state
 
     node = get_ast(dummy)
-    state = collect_numbers(node, state=set())
-    assert state == set([1, 4])
+    state = collect_numbers(node, state=dict(numbers=immutableset()))
+    assert state.numbers == set([1, 4])
 
 
 def test_walk_list():
@@ -70,13 +70,13 @@ def test_walk_list():
     @ast_inspector
     def collect_numbers(node, state, **kwds):
         if isinstance(node, ast.Num):
-            return pure_add(state, node.n)
+            return state.update(numbers=state.numbers.add(node.n))
         else:
             return state
 
     node = get_ast(dummy)
-    state = collect_numbers(node.body, state=set())
-    assert state == set([1, 4])
+    state = collect_numbers(node.body, state=dict(numbers=immutableset()))
+    assert state.numbers == set([1, 4])
 
 
 def test_walker():
@@ -84,14 +84,14 @@ def test_walker():
     @ast_walker
     def process_numbers(node, state, **kwds):
         if isinstance(node, ast.Num):
-            return ast.Num(n=node.n + 1), pure_add(state, node.n)
+            return ast.Num(n=node.n + 1), state.update(numbers=state.numbers.add(node.n))
         else:
             return node, state
 
     node = get_ast(dummy)
-    new_node, state = process_numbers(node, state=set())
+    new_node, state = process_numbers(node, state=dict(numbers=immutableset()))
 
-    assert state == set([1, 4])
+    assert state.numbers == set([1, 4])
     assert_ast_equal(new_node, get_ast("""
         def dummy(x, y):
             c = 5
@@ -266,7 +266,7 @@ def test_dispatched_walker():
     class collect_numbers_with_default:
         @staticmethod
         def handle_Num(node, state, **kwds):
-            return pure_add(state, node.n)
+            return state.update(numbers=state.numbers.add(node.n))
 
         @staticmethod
         def handle(node, state, **kwds):
@@ -276,15 +276,15 @@ def test_dispatched_walker():
     class collect_numbers:
         @staticmethod
         def handle_Num(node, state, **kwds):
-            return pure_add(state, node.n)
+            return state.update(numbers=state.numbers.add(node.n))
 
     node = get_ast(dummy)
 
-    state = collect_numbers(node, state=set())
-    assert state == set([1, 4])
+    state = collect_numbers(node, state=dict(numbers=immutableset()))
+    assert state.numbers == set([1, 4])
 
-    state = collect_numbers_with_default(node, state=set())
-    assert state == set([1, 4])
+    state = collect_numbers_with_default(node, state=dict(numbers=immutableset()))
+    assert state.numbers == set([1, 4])
 
 
 # Advanced functionality
@@ -464,15 +464,15 @@ def test_walk_field_inspect():
     def names_and_nums(node, state, walk_field, **kwds):
         if isinstance(node, ast.Assign):
             state = walk_field(node.value, state)
-            return pure_add(state, node.targets[0].id)
+            return state.update(objs=state.objs.add(node.targets[0].id))
         elif isinstance(node, ast.Num):
-            return pure_add(state, node.n)
+            return state.update(objs=state.objs.add(node.n))
         else:
             return state
 
     node = get_ast(dummy)
-    state = names_and_nums(node, state=set())
-    assert state == set(['a', 'c', 1, 4])
+    state = names_and_nums(node, state=dict(objs=immutableset()))
+    assert state.objs == set(['a', 'c', 1, 4])
 
 
 def test_walk_field_transform_inspect():
@@ -482,15 +482,16 @@ def test_walk_field_transform_inspect():
         if isinstance(node, ast.Assign):
             value_node, state = walk_field(node.value, state)
             new_node = replace_fields(node, targets=node.targets, value=value_node)
-            return new_node, pure_add(state, node.targets[0].id)
+            new_state = state.update(objs=state.objs.add(node.targets[0].id))
+            return new_node, new_state
         elif isinstance(node, ast.Num):
-            return ast.Num(n=node.n + 1), pure_add(state, node.n)
+            return ast.Num(n=node.n + 1), state.update(objs=state.objs.add(node.n))
         else:
             return node, state
 
     node = get_ast(dummy)
-    new_node, state = names_and_incremented_nums(node, state=set())
-    assert state == set(['a', 'c', 1, 4])
+    new_node, state = names_and_incremented_nums(node, state=dict(objs=immutableset()))
+    assert state.objs == set(['a', 'c', 1, 4])
     assert_ast_equal(new_node, get_ast(
         """
         def dummy(x, y):

@@ -2,6 +2,7 @@ import sys
 import ast
 import operator
 
+from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 
 
@@ -217,7 +218,8 @@ def _peval_expression(gen_sym, node, bindings):
     return _peval_expression_dispatch(node, gen_sym, bindings)
 
 
-def peval_expression(gen_sym, node, bindings):
+def peval_expression(gen_sym, node, bindings, py2_division=False):
+
     gen_sym, result, temp_bindings = _peval_expression(gen_sym, node, bindings)
     if isinstance(result, ast.AST):
         eval_result = EvaluationResult(

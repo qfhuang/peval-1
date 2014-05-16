@@ -7,6 +7,7 @@ Inspired by the ``Walker`` class from ``macropy``.
 
 import ast
 
+from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 
 
@@ -23,8 +24,13 @@ def ast_walker(handler):
         def walker(node, state=None, ctx=None)
 
     :param node: an ``ast.AST`` object to traverse.
-    :param state: a mutable object that will be passed to every handler call.
+    :param state: a dictionary with the state which will be passed to every handler call.
+        It will be converted into a :class:`~peval.core.immutable.immutableadict` object
+        at the start of the traversal.
+        Handlers can update it by returning a modified version.
     :param ctx: a dictionary with the global context which will be passed to every handler call.
+        It will be converted into a :class:`~peval.core.immutable.immutableadict` object
+        at the start of the traversal.
     :returns: a tuple ``(new_node, state)``, where ``state`` is the same object which was passed
         as the corresponding parameter.
         Does not mutate ``node``.
@@ -319,7 +325,10 @@ class _Walker:
             raise ValueError("Pure transformation walker cannot have a state")
 
         if ctx is not None:
-            ctx = _AttrDict(ctx)
+            ctx = immutableadict(ctx)
+
+        if state is not None:
+            state = immutableadict(state)
 
         if isinstance(node, ast.AST):
             new_node, new_state = self._walk_node(node, state, ctx)
