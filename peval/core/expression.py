@@ -29,23 +29,20 @@ class EvaluationResult:
         self.mutated_bindings = set()
 
 
-def peval_call(gen_sym, bindings, function, args=[], keywords=[], starargs=None, kwargs=None):
+def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
 
     can_eval = True
-    temp_bindings = {}
 
-    gen_sym, function_value, tb = _peval_expression(gen_sym, function, bindings)
+    function_value, state = _peval_expression(function, state, ctx)
     if isinstance(function_value, ast.AST):
         can_eval = False
-        temp_bindings.update(tb)
 
     args_values = []
     for arg in args:
-        gen_sym, value, tb = _peval_expression(gen_sym, arg, bindings)
+        value, state = _peval_expression(arg, state, ctx)
         args_values.append(value)
         if isinstance(value, ast.AST):
             can_eval = False
-            temp_bindings.update(tb)
 
     keywords_values = []
     #for keyword in keywords:
@@ -78,50 +75,51 @@ def peval_call(gen_sym, bindings, function, args=[], keywords=[], starargs=None,
             kwargs=kwargs_values)
         mapped_containers = {}
         for name, container in containers.items():
-            gen_sym, container, temp_bindings = map_wrap(gen_sym, container, temp_bindings)
+            container, state = map_wrap(container, state)
             mapped_containers[name] = container
         result = ast.Call(**mapped_containers)
 
-    return gen_sym, result, temp_bindings
+    return result, state
 
 
 def is_function_evalable(function):
     return True
 
 
-def wrap_in_ast(gen_sym, value):
+def wrap_in_ast(value, state):
     if isinstance(value, ast.AST):
-        return gen_sym, value, {}
+        return value, state
 
     obj = value.value
+
     if obj is True or obj is False or obj is None:
         if sys.version_info >= (3, 4):
-            return gen_sym, ast.NameConstant(value=obj), {}
+            return ast.NameConstant(value=obj), state
         else:
-            return gen_sym, ast.Name(id=str(obj), ctx=ast.Load()), {}
+            return ast.Name(id=str(obj), ctx=ast.Load()), state
     elif type(obj) in (str,):
-        return gen_sym, ast.Str(s=obj), {}
+        return ast.Str(s=obj), state
     elif type(obj) in (int, float):
-        return gen_sym, ast.Num(n=obj), {}
+        return ast.Num(n=obj), state
     else:
-        gen_sym, name = gen_sym()
-        return gen_sym, ast.Name(id=name), {name: obj}
+        gen_sym, name = state.gen_sym()
+        new_state = state.update(
+            gen_sym=gen_sym,
+            temp_bindings=state.temp_bindings.set(name, obj))
+        return ast.Name(id=name), new_state
 
 
-def map_wrap(gen_sym, container, temp_bindings):
-    temp_bindings = dict(temp_bindings)
+def map_wrap(container, state):
     if container is None:
         result = None
     elif isinstance(container, (KnownValue, ast.AST)):
-        gen_sym, result, tb = wrap_in_ast(gen_sym, container)
-        temp_bindings.update(tb)
+        result, state = wrap_in_ast(container, state)
     elif isinstance(container, list):
         result = []
         for elem in container:
-            gen_sym, elem_result, tb = wrap_in_ast(gen_sym, elem)
+            elem_result, state = wrap_in_ast(elem, state)
             result.append(elem_result)
-            temp_bindings.update(tb)
-    return gen_sym, result, temp_bindings
+    return result, state
 
 
 def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
@@ -141,99 +139,96 @@ def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
 
 
 @Dispatcher
-class _peval_expression_dispatch:
+class _peval_expression:
 
     @staticmethod
-    def handle(node, gen_sym, bindings):
-        return gen_sym, node, bindings
+    def handle(node, state, ctx):
+        return node, state
 
     @staticmethod
-    def handle_Name(node, gen_sym, bindings):
-        if node.id in bindings:
-            return gen_sym, KnownValue(bindings[node.id]), {}
+    def handle_Name(node, state, ctx):
+        if node.id in ctx.bindings:
+            return KnownValue(ctx.bindings[node.id]), state
         else:
-            return gen_sym, node, {}
+            return node, state
 
     @staticmethod
-    def handle_Num(node, gen_sym, bindings):
-        return gen_sym, KnownValue(node.n), {}
+    def handle_Num(node, state, ctx):
+        return KnownValue(node.n), state
 
     @staticmethod
-    def handle_Add(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.add), {}
+    def handle_Add(node, state, ctx):
+        return KnownValue(operator.add), state
 
     @staticmethod
-    def handle_Sub(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.sub), {}
+    def handle_Sub(node, state, ctx):
+        return KnownValue(operator.sub), state
 
     @staticmethod
-    def handle_Mult(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.mul), {}
+    def handle_Mult(node, state, ctx):
+        return KnownValue(operator.mul), state
 
     @staticmethod
-    def handle_Div(node, gen_sym, bindings):
-        if sys.version_info > (3,):
-            div = operator.truediv
-        else:
+    def handle_Div(node, state, ctx):
+        if ctx.py2_division:
             div = operator.div
-        return gen_sym, KnownValue(div), {}
+        else:
+            div = operator.truediv
+        return KnownValue(div), state
 
     @staticmethod
-    def handle_Mod(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.mod), {}
+    def handle_Mod(node, state, ctx):
+        return KnownValue(operator.mod), state
 
     @staticmethod
-    def handle_Lt(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.lt), {}
+    def handle_Lt(node, state, ctx):
+        return KnownValue(operator.lt), state
 
     @staticmethod
-    def handle_Gt(node, gen_sym, bindings):
-        return gen_sym, KnownValue(operator.gt), {}
+    def handle_Gt(node, state, ctx):
+        return KnownValue(operator.gt), state
 
     @staticmethod
-    def handle_Call(node, gen_sym, bindings):
-        return peval_call(gen_sym, bindings, node.func, args=node.args)
+    def handle_Call(node, state, ctx):
+        return peval_call(state, ctx, node.func, args=node.args)
 
     @staticmethod
-    def handle_BinOp(node, gen_sym, bindings):
-        gen_sym, result, temp_bindings = peval_call(
-            gen_sym, bindings, node.op, args=[node.left, node.right])
+    def handle_BinOp(node, state, ctx):
+        result, state = peval_call(
+            state, ctx, node.op, args=[node.left, node.right])
         if isinstance(result, ast.AST):
-            del temp_bindings[result.func.id]
+            state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.BinOp(op=node.op, left=result.args[0], right=result.args[1])
-        return gen_sym, result, temp_bindings
+        return result, state
 
     @staticmethod
-    def handle_Compare(node, gen_sym, bindings):
+    def handle_Compare(node, state, ctx):
         assert len(node.ops) == 1
-        gen_sym, result, temp_bindings = peval_call(
-            gen_sym, bindings, node.ops[0], args=[node.left, node.comparators[0]])
+        result, state = peval_call(
+            state, ctx, node.ops[0], args=[node.left, node.comparators[0]])
         if isinstance(result, ast.AST):
-            del temp_bindings[result.func.id]
+            state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.Compare(left=result.args[0], ops=node.ops, comparators=[result.args[1]])
-        return gen_sym, result, temp_bindings
+        return result, state
 
 
-def _peval_expression(gen_sym, node, bindings):
-    return _peval_expression_dispatch(node, gen_sym, bindings)
+def peval_expression(node, gen_sym, bindings, py2_division=False):
 
+    ctx = immutableadict(bindings=bindings, py2_division=py2_division)
+    state = immutableadict(gen_sym=gen_sym, temp_bindings=immutableadict())
 
-def peval_expression(gen_sym, node, bindings, py2_division=False):
-
-    gen_sym, result, temp_bindings = _peval_expression(gen_sym, node, bindings)
+    result, state = _peval_expression(node, state, ctx)
     if isinstance(result, ast.AST):
         eval_result = EvaluationResult(
             fully_evaluated=False,
             node=result,
-            temp_bindings=temp_bindings)
+            temp_bindings=state.temp_bindings)
     else:
-        gen_sym, result_node, binding = wrap_in_ast(gen_sym, result)
-        temp_bindings.update(binding)
-
+        result_node, state = wrap_in_ast(result, state)
         eval_result = EvaluationResult(
             fully_evaluated=True,
             value=result.value,
             node=result_node,
-            temp_bindings=temp_bindings)
+            temp_bindings=state.temp_bindings)
 
-    return gen_sym, eval_result
+    return eval_result, state.gen_sym
