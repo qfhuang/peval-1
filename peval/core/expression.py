@@ -65,24 +65,32 @@ def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs
     kwargs_values = None
 
     if can_eval and is_function_evalable(function_value.value):
-        result = KnownValue(eval_call(
-            function_value.value,
-            args=[arg.value for arg in args_values],
-            keywords=[(name, keyword.value) for name, keyword in keywords_values],
-            starargs=starargs_value.value if starargs_values is not None else None,
-            kwargs=kwargs_value.value if kwargs_values is not None else None))
-    else:
-        containers = dict(
-            func=function_value,
-            args=args_values,
-            keywords=keywords_values,
-            starargs=starargs_values,
-            kwargs=kwargs_values)
-        mapped_containers = {}
-        for name, container in containers.items():
-            container, state = map_wrap(container, state)
-            mapped_containers[name] = container
-        result = ast.Call(**mapped_containers)
+        args = [arg.value for arg in args_values]
+        keywords = [(name, keyword.value) for name, keyword in keywords_values]
+        starargs = starargs_value.value if starargs_values is not None else None
+        kwargs = kwargs_value.value if kwargs_values is not None else None
+
+        try:
+            value = eval_call(
+                function_value.value,
+                args=args, keywords=keywords, starargs=starargs, kwargs=kwargs)
+        except Exception:
+            pass
+        else:
+            return KnownValue(value), state
+
+    # Could not evaluate the function, returning the partially evaluated node
+    containers = dict(
+        func=function_value,
+        args=args_values,
+        keywords=keywords_values,
+        starargs=starargs_values,
+        kwargs=kwargs_values)
+    mapped_containers = {}
+    for name, container in containers.items():
+        container, state = map_wrap(container, state)
+        mapped_containers[name] = container
+    result = ast.Call(**mapped_containers)
 
     return result, state
 
@@ -141,7 +149,6 @@ def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
         raise Exception("Multiple values for keyword arguments " + repr(list(intersection)))
     kwds.update(kwargs)
 
-    # FIXME: may catch exceptions and return a more meaningful error here
     return function(*args, **kwds)
 
 

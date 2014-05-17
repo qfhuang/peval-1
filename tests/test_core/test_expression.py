@@ -124,9 +124,6 @@ def test_exception():
     is left unevaluated.
     """
 
-    # Exception catching is not implemented yet
-    pytest.xfail()
-
     @pure_function
     def fn():
         return 1 / 0
