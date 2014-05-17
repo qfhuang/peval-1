@@ -14,7 +14,7 @@ def inline_functions(tree, constants):
     constants = dict(constants)
     tree, state = inliner(
         tree, state=dict(gen_sym=gen_sym, constants=constants))
-    return tree, state['constants']
+    return tree, state.constants
 
 
 @ast_walker
@@ -24,8 +24,8 @@ def inliner(node, state, prepend, **kwds):
     Inline function if it is marked with @inline.
     '''
     if isinstance(node, ast.Call):
-        gen_sym = state['gen_sym']
-        constants = state['constants']
+        gen_sym = state.gen_sym
+        constants = state.constants
 
         is_known, fn = get_node_value_if_known(node.func, constants)
         if is_known and is_inlined_fn(fn):

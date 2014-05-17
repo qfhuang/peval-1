@@ -38,14 +38,14 @@ class _mangle:
     @staticmethod
     def handle_arg(node, state, ctx, **kwds):
         gen_sym, new_node, mangled = _visit_local(
-            state['gen_sym'], node, ctx.fn_locals, state['mangled'])
+            state.gen_sym, node, ctx.fn_locals, state.mangled)
         new_state = state.update(gen_sym=gen_sym, mangled=mangled)
         return new_node, new_state
 
     @staticmethod
     def handle_Name(node, state, ctx, **kwds):
         gen_sym, new_node, mangled = _visit_local(
-            state['gen_sym'], node, ctx.fn_locals, state['mangled'])
+            state.gen_sym, node, ctx.fn_locals, state.mangled)
         new_state = state.update(gen_sym=gen_sym, mangled=mangled)
         return new_node, new_state
 
@@ -55,7 +55,7 @@ class _mangle:
         '''
         new_value, sub_state = _mangle(node.value, state=state, ctx=ctx)
         new_state = state.update(
-            gen_sym=sub_state['gen_sym'],
+            gen_sym=sub_state.gen_sym,
             mangled=state.mangled.update(sub_state.mangled))
         new_nodes = [
             ast.Assign(
@@ -71,4 +71,4 @@ def mangle(gen_sym, node, return_name):
         node,
         state=dict(gen_sym=gen_sym, mangled=immutabledict()),
         ctx=dict(fn_locals=fn_locals, return_name=return_name))
-    return state['gen_sym'], new_node
+    return state.gen_sym, new_node
