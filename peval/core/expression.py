@@ -8,14 +8,19 @@ from peval.core.dispatcher import Dispatcher
 
 class KnownValue:
 
-    def __init__(self, value):
+    def __init__(self, value, preferred_name=None):
         self.value = value
+        self.preferred_name = preferred_name
 
     def __str__(self):
-        return "<" + str(self.value) + ">"
+        return (
+            "<" + str(self.value)
+            + (" (" + self.preferred_name + ")" if self.preferred_name is not None else "")
+            + ">")
 
     def __repr__(self):
-        return "KnownValue({value})".format(value=repr(self.value))
+        return "KnownValue({value}, preferred_name={name})".format(
+            value=repr(self.value), preferred_name=self.preferred_name)
 
 
 class EvaluationResult:
@@ -101,12 +106,14 @@ def wrap_in_ast(value, state):
         return ast.Str(s=obj), state
     elif type(obj) in (int, float):
         return ast.Num(n=obj), state
+    elif value.preferred_name is not None:
+        return ast.Name(id=value.preferred_name, ctx=ast.Load()), state
     else:
         name, gen_sym = state.gen_sym()
         new_state = state.update(
             gen_sym=gen_sym,
             temp_bindings=state.temp_bindings.set(name, obj))
-        return ast.Name(id=name), new_state
+        return ast.Name(id=name, ctx=ast.Load()), new_state
 
 
 def map_wrap(container, state):
@@ -148,7 +155,7 @@ class _peval_expression:
     @staticmethod
     def handle_Name(node, state, ctx):
         if node.id in ctx.bindings:
-            return KnownValue(ctx.bindings[node.id]), state
+            return KnownValue(ctx.bindings[node.id], preferred_name=node.id), state
         else:
             return node, state
 

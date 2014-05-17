@@ -80,45 +80,24 @@ def test_propagation_named_constant():
         fully_evaluated=True, expected_value=None)
 
 
-def test_propagation_subclass():
+def test_preferred_name():
     """
-    Test that constant propogation does not happen on primitive subclasses
+    Test that when a non-literal value is transformed back into an AST node,
+    it takes back the name it was bound to.
     """
-
-    # Currently when wrapping a value in an AST node,
-    # we do not check whether this value is already bound to some variable
-    # (which is often the case).
-    # This makes this test fail.
-    pytest.xfail()
 
     class Int(int): pass
     check_peval_expression(
         'm * n', dict(m=Int(2)),
         'm * n')
-    check_peval_expression(
-        'm * n', dict(m=Int(2), n=3),
-        'm * 3')
-
-    class Float(float): pass
-    check_peval_expression(
-        'm * n', dict(m=Float(2.0)),
-        'm * n')
-
-    class Text(six.text_type): pass
-    check_peval_expression(
-        'm + n', dict(m=Text(six.u('foo'))),
-        'm + n')
-
-    class Binary(six.binary_type): pass
-    check_peval_expression(
-        'm + n', dict(m=Binary(six.b('foo'))),
-        'm + n')
 
 
 def test_call_no_args():
+
     @pure_function
     def fn():
         return 'Hi!'
+
     check_peval_expression(
         'fn()', dict(fn=fn), '"Hi!"',
         fully_evaluated=True, expected_value='Hi!')
@@ -126,21 +105,17 @@ def test_call_no_args():
 
 def test_call_with_args():
 
-    # Currently when wrapping a value in an AST node,
-    # we do not check whether this value is already bound to some variable
-    # (which is often the case).
-    # This makes this test fail.
-    pytest.xfail()
-
     @pure_function
     def fn(x, y):
         return x + [y]
+
     check_peval_expression('fn(x, y)', dict(fn=fn, x=10), 'fn(10, y)')
     check_peval_expression(
             'fn(x, y)',
             dict(fn=fn, x=[10], y=20.0),
-            '__binding_1',
-            expected_temp_bindings=dict(__binding_1=[10, 20.0]))
+            '__peval_sym_1',
+            expected_temp_bindings=dict(__peval_sym_1=[10, 20.0]),
+            fully_evaluated=True, expected_value=[10, 20.0])
 
 
 def test_exception():
