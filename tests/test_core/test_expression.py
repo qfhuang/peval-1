@@ -132,13 +132,15 @@ def test_exception():
 
 def test_not():
 
-    # UnaryOp processing is not implemented yet
-    pytest.xfail()
-
-    check_peval_expression('not x', dict(x="s"), 'False')
-    check_peval_expression('not x', dict(x=0), 'True')
-    check_peval_expression('not 1', dict(), 'False')
-    check_peval_expression('not False', dict(), 'True')
+    check_peval_expression(
+        'not x', dict(x="s"), 'False',
+        fully_evaluated=True, expected_value=False)
+    check_peval_expression(
+        'not x', dict(x=0), 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        'not 1', dict(), 'False',
+        fully_evaluated=True, expected_value=False)
 
 
 def test_and():

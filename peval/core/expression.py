@@ -203,6 +203,10 @@ class _peval_expression:
         return KnownValue(operator.gt), state
 
     @staticmethod
+    def handle_Not(node, state, ctx):
+        return KnownValue(operator.not_), state
+
+    @staticmethod
     def handle_Call(node, state, ctx):
         return peval_call(state, ctx, node.func, args=node.args)
 
@@ -213,6 +217,15 @@ class _peval_expression:
         if isinstance(result, ast.AST):
             state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.BinOp(op=node.op, left=result.args[0], right=result.args[1])
+        return result, state
+
+    @staticmethod
+    def handle_UnaryOp(node, state, ctx):
+        result, state = peval_call(
+            state, ctx, node.op, args=[node.operand])
+        if isinstance(result, ast.AST):
+            state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
+            result = ast.UnaryOp(op=node.op, operand=result.args[0])
         return result, state
 
     @staticmethod

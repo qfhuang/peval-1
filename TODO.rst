@@ -22,6 +22,13 @@ core/function
 * BUG: builtins are located in a separate scope (``globals()['__builtins__']``) and currently cannot be resolved.
 
 
+core/expression
+---------------
+
+* BUG: prior to Py3.4 ``None``, ``False`` and ``True`` are redefinable bindings.
+  We need to keep it in mind in ``wrap_in_ast()`` and probably create a new binding instead of just returning an ``ast.Name``.
+
+
 components/evaluate
 -------------------
 
