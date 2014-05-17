@@ -130,17 +130,6 @@ def test_exception():
     check_peval_expression('fn()', dict(fn=fn), 'fn()')
 
 
-def test_evaluate_builtins():
-    """
-    Test that we can evaluate builtins
-    """
-
-    # Builtin recognition is not implemented yet
-    pytest.xfail()
-
-    check_peval_expression('isinstance(n, int)', dict(n=10), 'True')
-
-
 def test_not():
 
     # UnaryOp processing is not implemented yet

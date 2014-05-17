@@ -18,7 +18,8 @@ core/symbol_finder
 core/function
 -------------
 
-* BUG (function): preserve __future__ imports when re-evaluating functions.
+* BUG: preserve __future__ imports when re-evaluating functions.
+* BUG: builtins are located in a separate scope (``globals()['__builtins__']``) and currently cannot be resolved.
 
 
 components/evaluate
