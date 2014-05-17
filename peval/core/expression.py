@@ -152,6 +152,31 @@ def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
     return function(*args, **kwds)
 
 
+def peval_boolop(node, state, ctx):
+    assert type(node.op) in (ast.And, ast.Or)
+
+    new_values = []
+    for value_node in node.values:
+        new_value, state = _peval_expression(value_node, state, ctx)
+        is_known = isinstance(new_value, KnownValue)
+
+        # Short circuit
+        # FIXME: implicit call of bool() on a value --- can be mutating
+        if is_known:
+            if ((isinstance(node.op, ast.And) and not new_value.value)
+                    or (isinstance(node.op, ast.Or) and new_value.value)):
+                return new_value, state
+        else:
+            new_values.append(new_value)
+
+    if len(new_values) == 0:
+        return KnownValue(isinstance(node.op, ast.And)), state
+    elif len(new_values) == 1:
+        return new_values[0], state
+    else:
+        return type(node)(op=node.op, values=new_values), state
+
+
 @Dispatcher
 class _peval_expression:
 
@@ -218,6 +243,10 @@ class _peval_expression:
             state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.BinOp(op=node.op, left=result.args[0], right=result.args[1])
         return result, state
+
+    @staticmethod
+    def handle_BoolOp(node, state, ctx):
+        return peval_boolop(node, state, ctx)
 
     @staticmethod
     def handle_UnaryOp(node, state, ctx):

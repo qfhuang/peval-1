@@ -145,22 +145,18 @@ def test_not():
 
 def test_and():
 
-    # BoolOp processing is not implemented yet
-    pytest.xfail()
-
-    check_peval_expression('a and b', dict(a=False), 'False')
+    check_peval_expression(
+        'a and b', dict(a=False), 'False',
+        fully_evaluated=True, expected_value=False)
     check_peval_expression('a and b', dict(a=True), 'b')
     check_peval_expression(
-        'a and b()', dict(a=True, b=pure_function(lambda: True)),
-        'True')
+        'a and b()', dict(a=True, b=pure_function(lambda: True)), 'True',
+        fully_evaluated=True, expected_value=True)
     check_peval_expression(
-        'a and b and c and d', dict(a=True, c=True),
-        'b and d')
+        'a and b and c and d', dict(a=True, c=True), 'b and d')
+
 
 def test_and_short_circuit():
-
-    # BoolOp processing is not implemented yet
-    pytest.xfail()
 
     global_state = dict(cnt=0)
 
@@ -169,31 +165,34 @@ def test_and_short_circuit():
         global_state['cnt'] += 1
         return True
 
-    check_peval_expression('a and inc()', dict(a=False, inc=inc), 'False')
+    check_peval_expression(
+        'a and inc()', dict(a=False, inc=inc), 'False',
+        fully_evaluated=True, expected_value=False)
     assert global_state['cnt'] == 0
 
-    check_peval_expression('a and inc()', dict(a=True, inc=inc), 'True')
+    check_peval_expression(
+        'a and inc()', dict(a=True, inc=inc), 'True',
+        fully_evaluated=True, expected_value=True)
     assert global_state['cnt'] == 1
 
 
 def test_or():
 
-    # BoolOp processing is not implemented yet
-    pytest.xfail()
-
     check_peval_expression('a or b', dict(a=False), 'b')
-    check_peval_expression('a or b', dict(a=True), 'True')
-    check_peval_expression('a or b', dict(a=False, b=False), 'False')
     check_peval_expression(
-            'a or b()', dict(a=False, b=pure_function(lambda: True)),
-            'True')
-    check_peval_expression('a or b or c or d', dict(a=False, c=False), 'b or d')
+        'a or b', dict(a=True), 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        'a or b', dict(a=False, b=False), 'False',
+        fully_evaluated=True, expected_value=False)
+    check_peval_expression(
+        'a or b()', dict(a=False, b=pure_function(lambda: True)), 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        'a or b or c or d', dict(a=False, c=False), 'b or d')
 
 
 def test_or_short_circuit():
-
-    # BoolOp processing is not implemented yet
-    pytest.xfail()
 
     global_state = dict(cnt=0)
 
@@ -202,10 +201,14 @@ def test_or_short_circuit():
         global_state['cnt'] += 1
         return True
 
-    check_peval_expression('a or inc()', dict(a=True, inc=inc), 'True')
+    check_peval_expression(
+        'a or inc()', dict(a=True, inc=inc), 'True',
+        fully_evaluated=True, expected_value=True)
     assert global_state['cnt'] == 0
 
-    check_peval_expression('a or inc()', dict(a=False, inc=inc), 'True')
+    check_peval_expression(
+        'a or inc()', dict(a=False, inc=inc), 'True',
+        fully_evaluated=True, expected_value=True)
     assert global_state['cnt'] == 1
 
 
