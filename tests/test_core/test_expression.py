@@ -41,7 +41,7 @@ def test_bin_op_support():
     Check that all possible binary operators are handled by the evaluator.
     """
     check_peval_expression("1 + 2", {}, "3", fully_evaluated=True, expected_value=3)
-    check_peval_expression("1 - 2", {}, "-1", fully_evaluated=True, expected_value=-1)
+    check_peval_expression("2 - 1", {}, "1", fully_evaluated=True, expected_value=1)
     check_peval_expression("2 * 3", {}, "6", fully_evaluated=True, expected_value=6)
     if sys.version_info < (3,):
         check_peval_expression(
@@ -68,10 +68,10 @@ def test_unary_op_support():
     """
     Check that all possible unary operators are handled by the evaluator.
     """
-    check_peval_expression("+(-2)", {}, "-2", fully_evaluated=True, expected_value=-2)
+    check_peval_expression("+(2)", {}, "2", fully_evaluated=True, expected_value=2)
     check_peval_expression("-(-3)", {}, "3", fully_evaluated=True, expected_value=3)
     check_peval_expression("not 0", {}, "True", fully_evaluated=True, expected_value=True)
-    check_peval_expression("~4", {}, "-5", fully_evaluated=True, expected_value=-5)
+    check_peval_expression("~(-4)", {}, "3", fully_evaluated=True, expected_value=3)
 
 
 def test_comparison_op_support():
