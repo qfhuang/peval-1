@@ -76,3 +76,20 @@ def replace_fields(node, **kwds):
     new_kwds = dict(ast.iter_fields(node))
     new_kwds.update(kwds)
     return type(node)(**new_kwds)
+
+
+def ast_equal(node1, node2):
+    if type(node1) != type(node2):
+        return False
+
+    for attr, value1 in ast.iter_fields(node1):
+        value2 = getattr(node2, attr)
+        if (type(value1) == list
+                and any(not ast_equal(elem1, elem2) for elem1, elem2 in zip(value1, value2))):
+            return False
+        elif isinstance(value1, ast.AST) and not ast_equal(value1, value2):
+            return False
+        elif value1 != value2:
+            return False
+
+    return True
