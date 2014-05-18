@@ -164,6 +164,24 @@ class State:
         self.temp_bindings = temp_bindings
 
 
+def get_sorted_nodes(graph, enter):
+    sorted_nodes = []
+    todo_list = [enter]
+    visited = set()
+
+    while len(todo_list) > 0:
+        src_id = todo_list.pop()
+        if src_id in visited:
+            continue
+        sorted_nodes.append(src_id)
+        visited.add(src_id)
+
+        for dest_id in sorted(graph.children_of(src_id)):
+            todo_list.append(dest_id)
+
+    return sorted_nodes
+
+
 def maximal_fixed_point(gen_sym, graph, enter, bindings):
 
     states = dict(
@@ -172,10 +190,13 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
     enter_env = Environment.from_dict(bindings)
 
     # first make a pass over each basic block
-    todo_forward = set(graph._nodes)
+    # TODO is sorted to make the names of the final bindings deterministic
+    todo_forward = get_sorted_nodes(graph, enter)
+    todo_forward_set = set(todo_forward)
 
-    while todo_forward:
+    while len(todo_forward) > 0:
         node_id = todo_forward.pop()
+        todo_forward_set.remove(node_id)
         state = states[node_id]
 
         # compute the environment at the entry of this BB
@@ -192,7 +213,10 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
             forward_transfer(gen_sym, new_in_env, graph._nodes[node_id].ast_node)
         if new_out_env != states[node_id].out_env:
             states[node_id] = State(new_out_env, new_exprs, temp_bindings)
-            todo_forward |= graph.children_of(node_id)
+            for dest_id in sorted(graph.children_of(node_id)):
+                if dest_id not in todo_forward_set:
+                    todo_forward_set.add(dest_id)
+                    todo_forward.append(dest_id)
 
     # Converged
     new_exprs = {}
