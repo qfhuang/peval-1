@@ -213,28 +213,32 @@ def test_or_short_circuit():
 
 
 def test_eq():
-
-    # BoolOp processing is not implemented yet
-    pytest.xfail()
-
-    check_peval_expression('0 == 0', {}, 'True')
-    check_peval_expression('0 == 1', {}, 'False')
+    check_peval_expression(
+        '0 == 0', {}, 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        '0 == 1', {}, 'False',
+        fully_evaluated=True, expected_value=False)
     check_peval_expression('a == b', dict(a=1), '1 == b')
     check_peval_expression('a == b', dict(b=1), 'a == 1')
-    check_peval_expression('a == b', dict(a=1, b=1), 'True')
-    check_peval_expression('a == b', dict(a=2, b=1), 'False')
+    check_peval_expression(
+        'a == b', dict(a=1, b=1), 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        'a == b', dict(a=2, b=1), 'False',
+        fully_evaluated=True, expected_value=False)
     check_peval_expression(
             'a == b == c == d', dict(a=2, c=2),
             '2 == b == 2 == d')
 
 
 def test_mix():
-
-    # multivalue Compare processing is not implemented yet
-    pytest.xfail()
-
-    check_peval_expression('a < b >= c', dict(a=0, b=1, c=1), 'True')
-    check_peval_expression('a <= b > c', dict(a=0, b=1, c=1), 'False')
+    check_peval_expression(
+        'a < b >= c', dict(a=0, b=1, c=1), 'True',
+        fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        'a <= b > c', dict(a=0, b=1, c=1), 'False',
+        fully_evaluated=True, expected_value=False)
 
 
 def test_arithmetic():
