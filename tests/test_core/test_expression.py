@@ -56,6 +56,16 @@ def test_bin_op_support():
     check_peval_expression("17 & 3", {}, "1", fully_evaluated=True, expected_value=1)
 
 
+def test_unarry_op_support():
+    """
+    Check that all possible unary operators are handled by the evaluator.
+    """
+    check_peval_expression("+(-2)", {}, "-2", fully_evaluated=True, expected_value=-2)
+    check_peval_expression("-(-3)", {}, "3", fully_evaluated=True, expected_value=3)
+    check_peval_expression("not 0", {}, "True", fully_evaluated=True, expected_value=True)
+    check_peval_expression("~4", {}, "-5", fully_evaluated=True, expected_value=-5)
+
+
 def test_partial_bin_op():
     check_peval_expression(
         "5 + 6 + a", {},
