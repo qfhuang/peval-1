@@ -14,7 +14,7 @@ class GenSym(object):
 
     def __call__(self, tag='peval_sym'):
         while True:
-            name = '__' + tag + '_' + str(self._counter)
+            name = '__peval_' + tag + '_' + str(self._counter)
             self._counter += 1
             if name not in self._taken_names:
                 break

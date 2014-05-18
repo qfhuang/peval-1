@@ -20,18 +20,18 @@ def test_mutiple_returns():
     tree = ast.parse(source)
 
     expected_source = unshift('''
-    def f(__mangled_1, __mangled_2, __mangled_3='foo'):
-        if __mangled_1:
-            __mangled_4 = __mangled_2 + list(__mangled_1)
-            __return_5 = __mangled_4
+    def f(__peval_mangled_1, __peval_mangled_2, __peval_mangled_3='foo'):
+        if __peval_mangled_1:
+            __peval_mangled_4 = __peval_mangled_2 + list(__peval_mangled_1)
+            __peval_return_5 = __peval_mangled_4
             break
         else:
-            __return_5 = __mangled_3
+            __peval_return_5 = __peval_mangled_3
             break
     ''')
     expected_tree = ast.parse(expected_source)
 
     gen_sym = GenSym.for_tree(tree)
-    gen_sym, new_tree = mangle(gen_sym, tree, '__return_5')
+    gen_sym, new_tree = mangle(gen_sym, tree, '__peval_return_5')
 
     assert_ast_equal(new_tree, expected_tree)

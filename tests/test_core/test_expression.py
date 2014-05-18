@@ -202,8 +202,8 @@ def test_call_with_args():
     check_peval_expression(
             'fn(x, y)',
             dict(fn=fn, x=[10], y=20.0),
-            '__peval_sym_1',
-            expected_temp_bindings=dict(__peval_sym_1=[10, 20.0]),
+            '__peval_temp_1',
+            expected_temp_bindings=dict(__peval_temp_1=[10, 20.0]),
             fully_evaluated=True, expected_value=[10, 20.0])
 
 

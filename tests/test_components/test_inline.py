@@ -28,10 +28,10 @@ def test_simple_return():
         expected_source="""
             def outer(x):
                 a = x.foo()
-                __mangled_2 = x
-                __mangled_3 = (__mangled_2 + 1)
-                __return_1 = (__mangled_3 * 2)
-                a += __return_1
+                __peval_mangled_2 = x
+                __peval_mangled_3 = (__peval_mangled_2 + 1)
+                __peval_return_1 = (__peval_mangled_3 * 2)
+                a += __peval_return_1
                 return a
         """)
 
@@ -53,10 +53,10 @@ def test_simple_return():
         expected_source="""
             def outer(x):
                 a = x.foo()
-                __mangled_2 = x
-                __mangled_3 = (__mangled_2 + 1)
-                __return_1 = (__mangled_3 * 2)
-                a += __return_1
+                __peval_mangled_2 = x
+                __peval_mangled_3 = (__peval_mangled_2 + 1)
+                __peval_return_1 = (__peval_mangled_3 * 2)
+                a += __peval_return_1
                 return a
         """)
 
@@ -81,17 +81,17 @@ def test_multiple_returns():
         expected_source="""
             def outer(x):
                 a = x.foo()
-                __mangled_2 = x
-                __while_4 = True
-                while __while_4:
-                    __while_4 = False
-                    __mangled_3 = (__mangled_2 + 1)
-                    if (__mangled_3 > 3):
-                        __return_1 = (__mangled_3 * 2)
+                __peval_mangled_2 = x
+                __peval_while_4 = True
+                while __peval_while_4:
+                    __peval_while_4 = False
+                    __peval_mangled_3 = (__peval_mangled_2 + 1)
+                    if (__peval_mangled_3 > 3):
+                        __peval_return_1 = (__peval_mangled_3 * 2)
                         break
                     else:
-                        __return_1 = 1
+                        __peval_return_1 = 1
                         break
-                a += __return_1
+                a += __peval_return_1
                 return a
         """)

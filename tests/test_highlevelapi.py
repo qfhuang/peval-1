@@ -76,10 +76,10 @@ def test_simple_return():
             a = x.foo()
             if a:
                 b = a * 10
-            __mangled_3 = []
-            for __mangled_4 in xrange(x):
-                __mangled_3.append(x.do_stuff())
-            a = (b + __mangled_3)
+            __peval_mangled_3 = []
+            for __peval_mangled_4 in xrange(x):
+                __peval_mangled_3.append(x.do_stuff())
+            a = (b + __peval_mangled_3)
             return a
         ''')
 
@@ -109,20 +109,20 @@ def test_complex_return():
             a = x.foo()
             if a:
                 b = a * 10
-                __mangled_2 = x - 3
-                __while_5 = True
-                while __while_5:
-                    __while_5 = False
-                    __mangled_3 = []
-                    for __mangled_4 in iter(__mangled_2):
-                        __mangled_3.append(__mangled_4.do_stuff())
-                    if __mangled_3:
-                        __return_1 = __mangled_3
+                __peval_mangled_2 = x - 3
+                __peval_while_5 = True
+                while __peval_while_5:
+                    __peval_while_5 = False
+                    __peval_mangled_3 = []
+                    for __peval_mangled_4 in iter(__peval_mangled_2):
+                        __peval_mangled_3.append(__peval_mangled_4.do_stuff())
+                    if __peval_mangled_3:
+                        __peval_return_1 = __peval_mangled_3
                         break
                     else:
-                        __return_1 = None
+                        __peval_return_1 = None
                         break
-                a = __return_1 + b
+                a = __peval_return_1 + b
             return a
         ''')
 
