@@ -23,11 +23,11 @@ def check_peval_expression(source, bindings, expected_source,
     gen_sym = GenSym()
     result, gen_sym = peval_expression(source_tree, gen_sym, bindings, py2_division=py2_division)
 
+    assert_ast_equal(result.node, expected_tree)
+
     assert result.fully_evaluated == fully_evaluated
     if fully_evaluated:
         assert result.value == expected_value
-
-    assert_ast_equal(result.node, expected_tree)
 
     if expected_temp_bindings is not None:
         for key, val in expected_temp_bindings.items():
