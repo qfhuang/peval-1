@@ -21,7 +21,7 @@ class KnownValue:
 
     def __repr__(self):
         return "KnownValue({value}, preferred_name={name})".format(
-            value=repr(self.value), preferred_name=self.preferred_name)
+            value=repr(self.value), name=self.preferred_name)
 
 
 UNARY_OPS = {
