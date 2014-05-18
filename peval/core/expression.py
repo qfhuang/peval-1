@@ -24,6 +24,10 @@ class KnownValue(object):
             value=repr(self.value), name=self.preferred_name)
 
 
+def is_known(value):
+    return type(value) == KnownValue
+
+
 UNARY_OPS = {
     ast.UAdd: KnownValue(operator.pos),
     ast.USub: KnownValue(operator.neg),
@@ -201,11 +205,10 @@ def peval_boolop(state, ctx, op, values):
     new_values = []
     for value in values:
         new_value, state = _peval_expression(value, state, ctx)
-        is_known = isinstance(new_value, KnownValue)
 
         # Short circuit
         # FIXME: implicit call of bool() on a value --- can be mutating
-        if is_known:
+        if is_known(new_value):
             if ((isinstance(op, ast.And) and not new_value.value)
                     or (isinstance(op, ast.Or) and new_value.value)):
                 return new_value, state
@@ -314,6 +317,23 @@ class _peval_expression_node:
     @staticmethod
     def handle_Num(node, state, ctx):
         return KnownValue(node.n), state
+
+    @staticmethod
+    def handle_Str(node, state, ctx):
+        return KnownValue(node.s), state
+
+    @staticmethod
+    def handle_Tuple(node, state, ctx):
+        elts = []
+        for elt in node.elts:
+            elt_value, state = _peval_expression(elt, state, ctx)
+            elts.append(elt_value)
+
+        if all(is_known(elt) for elt in elts):
+            return KnownValue(tuple(elts)), state
+        else:
+            elts, state = map_wrap(elts, state)
+            return ast.Tuple(elts=elts, ctx=ast.Load()), state
 
     @staticmethod
     def handle_Call(node, state, ctx):
