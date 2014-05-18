@@ -82,9 +82,9 @@ def test_multiple_returns():
             def outer(x):
                 a = x.foo()
                 __peval_mangled_2 = x
-                __peval_while_4 = True
+                __peval_while_4 = {true_const}
                 while __peval_while_4:
-                    __peval_while_4 = False
+                    __peval_while_4 = {false_const}
                     __peval_mangled_3 = (__peval_mangled_2 + 1)
                     if (__peval_mangled_3 > 3):
                         __peval_return_1 = (__peval_mangled_3 * 2)
@@ -94,4 +94,6 @@ def test_multiple_returns():
                         break
                 a += __peval_return_1
                 return a
-        """)
+        """.format(
+            true_const='__peval_True_5' if sys.version_info < (3, 4) else 'True',
+            false_const='__peval_False_6' if sys.version_info < (3, 4) else 'False'))

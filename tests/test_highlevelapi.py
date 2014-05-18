@@ -1,9 +1,8 @@
 from __future__ import print_function
 
+import sys
 import ast
-import difflib
 
-import astunparse
 import pytest
 
 from peval.core.function import Function
@@ -110,9 +109,9 @@ def test_complex_return():
             if a:
                 b = a * 10
                 __peval_mangled_2 = x - 3
-                __peval_while_5 = True
+                __peval_while_5 = {true_const}
                 while __peval_while_5:
-                    __peval_while_5 = False
+                    __peval_while_5 = {false_const}
                     __peval_mangled_3 = []
                     for __peval_mangled_4 in iter(__peval_mangled_2):
                         __peval_mangled_3.append(__peval_mangled_4.do_stuff())
@@ -124,7 +123,9 @@ def test_complex_return():
                         break
                 a = __peval_return_1 + b
             return a
-        ''')
+        '''.format(
+            true_const='__peval_True_6' if sys.version_info < (3, 4) else 'True',
+            false_const='__peval_False_7' if sys.version_info < (3, 4) else 'False'))
 
 
 def power(x, n):

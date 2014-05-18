@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from peval.components.fold import fold
@@ -22,14 +24,14 @@ def test_fold():
         expected_source="""
             def dummy(x):
                 a = 1
-                if False:
+                if {false_const}:
                     b = 3
                     c = 10
                 else:
                     b = 2
                     c = 4
                 return 1 + b + c + x
-            """)
+            """.format(false_const='__peval_False_20' if sys.version_info < (3, 4) else 'False'))
 
 
 def test_if_visit_only_true_branch():
