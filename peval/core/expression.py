@@ -223,7 +223,7 @@ def peval_boolop(state, ctx, op, values):
 def peval_binop(state, ctx, op, left, right):
 
     if ctx.py2_division and type(op) == ast.Div:
-        func_div = operator.div
+        func = KnownValue(operator.div)
     else:
         func = BIN_OPS[type(op)]
 

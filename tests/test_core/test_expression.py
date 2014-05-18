@@ -14,13 +14,14 @@ def expression_ast(source):
 
 
 def check_peval_expression(source, bindings, expected_source,
-        fully_evaluated=False, expected_value=None, expected_temp_bindings=None):
+        fully_evaluated=False, expected_value=None, expected_temp_bindings=None,
+        py2_division=False):
 
     source_tree = expression_ast(source)
     expected_tree = expression_ast(expected_source)
 
     gen_sym = GenSym()
-    result, gen_sym = peval_expression(source_tree, gen_sym, bindings)
+    result, gen_sym = peval_expression(source_tree, gen_sym, bindings, py2_division=py2_division)
 
     assert result.fully_evaluated == fully_evaluated
     if fully_evaluated:
@@ -32,6 +33,27 @@ def check_peval_expression(source, bindings, expected_source,
         for key, val in expected_temp_bindings.items():
             assert key in result.temp_bindings
             assert result.temp_bindings[key] == expected_temp_bindings[key]
+
+
+def test_bin_op_support():
+    """
+    Check that all possible binary operators are handled by the evaluator.
+    """
+    check_peval_expression("1 + 2", {}, "3", fully_evaluated=True, expected_value=3)
+    check_peval_expression("1 - 2", {}, "-1", fully_evaluated=True, expected_value=-1)
+    check_peval_expression("2 * 3", {}, "6", fully_evaluated=True, expected_value=6)
+    check_peval_expression(
+        "9 / 2", {}, "4", fully_evaluated=True, expected_value=4, py2_division=True)
+    check_peval_expression(
+        "9 / 2", {}, "4.5", fully_evaluated=True, expected_value=4.5, py2_division=False)
+    check_peval_expression("9 // 2", {}, "4", fully_evaluated=True, expected_value=4)
+    check_peval_expression("9 % 2", {}, "1", fully_evaluated=True, expected_value=1)
+    check_peval_expression("2 ** 4", {}, "16", fully_evaluated=True, expected_value=16)
+    check_peval_expression("3 << 2", {}, "12", fully_evaluated=True, expected_value=12)
+    check_peval_expression("64 >> 3", {}, "8", fully_evaluated=True, expected_value=8)
+    check_peval_expression("17 | 3", {}, "19", fully_evaluated=True, expected_value=19)
+    check_peval_expression("17 ^ 3", {}, "18", fully_evaluated=True, expected_value=18)
+    check_peval_expression("17 & 3", {}, "1", fully_evaluated=True, expected_value=1)
 
 
 def test_partial_bin_op():
