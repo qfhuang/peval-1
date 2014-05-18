@@ -230,36 +230,6 @@ def peval_single_compare(state, ctx, op, left, right):
     return result, state
 
 
-class DynamicCompare:
-
-    def __init__(self, left, ops, comparators):
-        self.left = left
-        self.ops = ops
-        self.comparators = comparators
-
-    @classmethod
-    def from_node(cls, node):
-        if isinstance(node, ast.Compare):
-            return cls(node.left, node.ops, node.comparators)
-        else:
-            return cls(node, [], [])
-
-    def can_append(self, node):
-        return (
-            isinstance(node, ast.Compare)
-            and len(self.comparators) > 0
-            and ast_equal(self.comparators[-1], node.left))
-
-    def append(self, node):
-        return DynamicCompare(self.left, self.ops + node.ops, self.comparators + node.comparators)
-
-    def make_node(self):
-        if len(self.comparators) == 0:
-            return self.left
-        else:
-            return ast.Compare(left=self.left, ops=self.ops, comparators=self.comparators)
-
-
 def peval_compare(state, ctx, node):
 
     if len(node.ops) == 1:
@@ -286,17 +256,23 @@ def peval_compare(state, ctx, node):
         return result, state
 
     # Gluing non-evaluated comparisons back together.
-    compares = [DynamicCompare.from_node(result.values[0])]
+    nodes = [result.values[0]]
     for value in result.values[1:]:
-        if compares[-1].can_append(value):
-            compares[-1] = compares[-1].append(value)
+        last_node = nodes[-1]
+        if (isinstance(last_node, ast.Compare)
+                and isinstance(value, ast.Compare)
+                and ast_equal(last_node.comparators[-1], value.left)):
+            nodes[-1] = ast.Compare(
+                left=last_node.left,
+                ops=last_node.ops + value.ops,
+                comparators=last_node.comparators + value.comparators)
         else:
-            compares.append(DynamicCompare.from_node(value))
+            nodes.append(value)
 
-    if len(compares) == 1:
-        return compares[0].make_node(), state
+    if len(nodes) == 1:
+        return nodes[0], state
     else:
-        return ast.BoolOp(op=ast.And(), values=[value.make_node() for value in compares]), state
+        return ast.BoolOp(op=ast.And(), values=nodes), state
 
 
 def _peval_expression(node_or_value, state, ctx):
