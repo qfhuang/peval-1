@@ -5,7 +5,7 @@ import difflib
 
 import astunparse
 
-from peval.utils import unshift
+from peval.utils import unshift, ast_equal
 from peval.core.function import Function
 
 
@@ -25,12 +25,6 @@ def ast_to_string(tree):
     ''' Return pretty-printed AST, as a string.
     '''
     return astunparse.dump(tree)
-
-
-def ast_equal(tree1, tree2):
-    ''' Returns whether AST tree1 is equal to tree2
-    '''
-    return ast.dump(tree1) == ast.dump(tree2)
 
 
 def print_diff(test, expected):
