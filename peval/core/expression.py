@@ -24,6 +24,48 @@ class KnownValue:
             value=repr(self.value), preferred_name=self.preferred_name)
 
 
+UNARY_OPS = {
+    ast.UAdd: KnownValue(operator.pos),
+    ast.USub: KnownValue(operator.neg),
+    ast.Not: KnownValue(operator.not_),
+    ast.Invert: KnownValue(operator.invert),
+    }
+
+BIN_OPS = {
+    ast.Add: KnownValue(operator.add),
+    ast.Sub: KnownValue(operator.sub),
+    ast.Mult: KnownValue(operator.mul),
+    ast.Div: KnownValue(operator.truediv),
+    ast.FloorDiv: KnownValue(operator.floordiv),
+    ast.Mod: KnownValue(operator.mod),
+    ast.Pow: KnownValue(operator.pow),
+    ast.LShift: KnownValue(operator.lshift),
+    ast.RShift: KnownValue(operator.rshift),
+    ast.BitOr: KnownValue(operator.or_),
+    ast.BitXor: KnownValue(operator.xor),
+    ast.BitAnd: KnownValue(operator.and_),
+    }
+
+def in_(x, y):
+    return operator.contains(y, x)
+
+def not_in(x, y):
+    return not operator.contains(y, x)
+
+COMPARE_OPS = {
+    ast.Eq: KnownValue(operator.eq),
+    ast.NotEq: KnownValue(operator.ne),
+    ast.Lt: KnownValue(operator.lt),
+    ast.LtE: KnownValue(operator.le),
+    ast.Gt: KnownValue(operator.gt),
+    ast.GtE: KnownValue(operator.ge),
+    ast.Is: KnownValue(operator.is_),
+    ast.IsNot: KnownValue(operator.is_not),
+    ast.In: KnownValue(in_),
+    ast.NotIn: KnownValue(not_in),
+    }
+
+
 class EvaluationResult:
 
     def __init__(self, fully_evaluated, node, temp_bindings, value=None):
@@ -180,18 +222,10 @@ def peval_boolop(state, ctx, op, values):
 
 def peval_binop(state, ctx, op, left, right):
 
-    funcs = {
-        ast.Add: KnownValue(operator.add),
-        ast.Sub: KnownValue(operator.sub),
-        ast.Mult: KnownValue(operator.mul),
-        ast.Div: KnownValue(operator.truediv),
-        ast.Mod: KnownValue(operator.mod),
-        }
-
     if ctx.py2_division and type(op) == ast.Div:
         func_div = operator.div
     else:
-        func = funcs[type(op)]
+        func = BIN_OPS[type(op)]
 
     result, state = peval_call(state, ctx, func, args=[left, right])
     if isinstance(result, ast.AST):
@@ -202,26 +236,7 @@ def peval_binop(state, ctx, op, left, right):
 
 def peval_single_compare(state, ctx, op, left, right):
 
-    def in_(x, y):
-        return operator.contains(y, x)
-
-    def not_in(x, y):
-        return not operator.contains(y, x)
-
-    funcs = {
-        ast.Eq: KnownValue(operator.eq),
-        ast.NotEq: KnownValue(operator.ne),
-        ast.Lt: KnownValue(operator.lt),
-        ast.LtE: KnownValue(operator.le),
-        ast.Gt: KnownValue(operator.gt),
-        ast.GtE: KnownValue(operator.ge),
-        ast.Is: KnownValue(operator.is_),
-        ast.IsNot: KnownValue(operator.is_not),
-        ast.In: KnownValue(in_),
-        ast.NotIn: KnownValue(not_in),
-        }
-
-    func = funcs[type(op)]
+    func = COMPARE_OPS[type(op)]
 
     result, state = peval_call(state, ctx, func, args=[left, right])
     if isinstance(result, ast.AST):
@@ -301,10 +316,6 @@ class _peval_expression_node:
         return KnownValue(node.n), state
 
     @staticmethod
-    def handle_Not(node, state, ctx):
-        return KnownValue(operator.not_), state
-
-    @staticmethod
     def handle_Call(node, state, ctx):
         return peval_call(state, ctx, node.func, args=node.args)
 
@@ -319,7 +330,7 @@ class _peval_expression_node:
     @staticmethod
     def handle_UnaryOp(node, state, ctx):
         result, state = peval_call(
-            state, ctx, node.op, args=[node.operand])
+            state, ctx, UNARY_OPS[type(node.op)], args=[node.operand])
         if isinstance(result, ast.AST):
             state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.UnaryOp(op=node.op, operand=result.args[0])
