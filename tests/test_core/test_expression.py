@@ -100,16 +100,11 @@ def test_comparison_op_support():
 
 
 def test_partial_bin_op():
-    check_peval_expression(
-        "5 + 6 + a", {},
-        "11 + a")
+    check_peval_expression("5 + 6 + a", {}, "11 + a")
 
 
 def test_full_bin_op():
-    check_peval_expression(
-        "5 + 6 + a", dict(a=7),
-        "18",
-        fully_evaluated=True, expected_value=18)
+    check_peval_expression("5 + 6 + a", dict(a=7), "18", fully_evaluated=True, expected_value=18)
 
 
 def test_propagation_int():
