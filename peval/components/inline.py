@@ -2,7 +2,7 @@ import ast
 import copy
 import sys
 
-from peval.utils import get_fn_arg_id, get_literal_node, get_node_value_if_known
+from peval.utils import get_fn_arg_id, value_to_node, get_node_value_if_known
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
@@ -73,16 +73,23 @@ def _inline(node, gen_sym, return_name, constants):
         inlined_body.extend(inlined_code[:-1])
     else: # multiple returns - wrap in "while"
         while_var, gen_sym = gen_sym('while')
+
+        true_node, gen_sym, true_binding = value_to_node(True, gen_sym)
+        constants.update(true_binding)
+
+        false_node, gen_sym, false_binding = value_to_node(False, gen_sym)
+        constants.update(false_binding)
+
         inlined_body.extend([
             ast.Assign(
                 targets=[ast.Name(id=while_var, ctx=ast.Store())],
-                value=get_literal_node(True)),
+                value=true_node),
             ast.While(
                 test=ast.Name(id=while_var, ctx=ast.Load()),
                 body=[
                     ast.Assign(
                         targets=[ast.Name(id=while_var, ctx=ast.Store())],
-                        value=get_literal_node(False))] +
+                        value=false_node)] +
                     inlined_code,
                 orelse=[])
             ])

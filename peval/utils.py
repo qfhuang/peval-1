@@ -6,10 +6,6 @@ import six
 from six.moves import builtins
 
 
-NUMBER_TYPES = six.integer_types + (float,)
-STRING_TYPES = six.string_types + (six.text_type, six.binary_type)
-
-
 def unshift(source):
     ''' Shift source to the left - so that it starts with zero indentation
     '''
@@ -37,19 +33,30 @@ def get_fn_arg_id(fn_arg_node):
         return fn_arg_node.arg
 
 
-def get_literal_node(value):
-    ''' If value can be represented as literal value,
-    return AST node for it. Literals are never mutable!
-    '''
-    if type(value) in NUMBER_TYPES:
-        return ast.Num(value)
-    elif type(value) in STRING_TYPES:
-        return ast.Str(value)
-    elif value in (False, True, None):
-        if sys.version_info >= (3, 4, 0):
-            return ast.NameConstant(value=value)
+def value_to_node(value, gen_sym, preferred_name=None):
+
+    number_types = (int, float, complex) + (tuple() if sys.version_info >= (3,) else (long,))
+
+    if value is True or value is False or value is None:
+        if sys.version_info >= (3, 4):
+            return ast.NameConstant(value=value), gen_sym, {}
         else:
-            return ast.Name(id=repr(value), ctx=ast.Load())
+            # Before Py3.4 these constants are not actually constants,
+            # but just builtin variables, and can, therefore, be redefined.
+            name, gen_sym = gen_sym(str(value))
+            return ast.Name(id=str(value), ctx=ast.Load()), gen_sym, {name: value}
+    elif type(value) == str or (sys.version_info < (3,) and type(value) == unicode):
+        return ast.Str(s=value), gen_sym, {}
+    elif sys.version_info >= (3,) and type(value) == bytes:
+        return ast.Bytes(s=value), gen_sym, {}
+    elif type(value) in number_types:
+        return ast.Num(n=value), gen_sym, {}
+    else:
+        if preferred_name is None:
+            name, gen_sym = gen_sym('temp')
+        else:
+            name = preferred_name
+        return ast.Name(id=name, ctx=ast.Load()), gen_sym, {name: value}
 
 
 def get_node_value_if_known(node, constants):

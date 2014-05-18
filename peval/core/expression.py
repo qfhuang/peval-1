@@ -2,7 +2,7 @@ import sys
 import ast
 import operator
 
-from peval.utils import ast_equal
+from peval.utils import ast_equal, value_to_node
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 
@@ -150,27 +150,13 @@ def wrap_in_ast(value, state):
     if isinstance(value, ast.AST):
         return value, state
 
-    obj = value.value
+    node, gen_sym, binding = value_to_node(
+        value.value, state.gen_sym, preferred_name=value.preferred_name)
+    state = state.update(
+        gen_sym=gen_sym,
+        temp_bindings=state.temp_bindings.update(binding))
 
-    if obj is True or obj is False or obj is None:
-        if sys.version_info >= (3, 4):
-            return ast.NameConstant(value=obj), state
-        else:
-            return ast.Name(id=str(obj), ctx=ast.Load()), state
-    elif type(obj) == str or (sys.version_info < (3,) and type(obj) == unicode):
-        return ast.Str(s=obj), state
-    elif sys.version_info >= (3,) and type(obj) == bytes:
-        return ast.Bytes(s=obj), state
-    elif type(obj) in (int, float, complex):
-        return ast.Num(n=obj), state
-    elif value.preferred_name is not None:
-        return ast.Name(id=value.preferred_name, ctx=ast.Load()), state
-    else:
-        name, gen_sym = state.gen_sym()
-        new_state = state.update(
-            gen_sym=gen_sym,
-            temp_bindings=state.temp_bindings.set(name, obj))
-        return ast.Name(id=name, ctx=ast.Load()), new_state
+    return node, state
 
 
 def map_wrap(container, state):
@@ -275,7 +261,7 @@ def peval_compare(state, ctx, node):
     if not isinstance(result, ast.BoolOp):
         return result, state
 
-    # Gluing non-evaluated comparisons back together.
+    # Glueing non-evaluated comparisons back together.
     nodes = [result.values[0]]
     for value in result.values[1:]:
         last_node = nodes[-1]
