@@ -115,6 +115,18 @@ def test_literal_support():
     check_peval_expression(
         "1 + 2j", {}, ast.Num(n=1 + 2j), fully_evaluated=True, expected_value=1 + 2j)
 
+    check_peval_expression("'a' + 'b'", {}, "'ab'", fully_evaluated=True, expected_value='ab')
+    if sys.version_info < (3,):
+        check_peval_expression(
+            "u'a' + u'b'", {}, "u'ab'", fully_evaluated=True, expected_value=unicode('ab'))
+    if sys.version_info >= (3, 3):
+        check_peval_expression(
+            "u'a' + u'b'", {}, "'ab'", fully_evaluated=True, expected_value='ab')
+    if sys.version_info >= (3, 2):
+        check_peval_expression(
+            "b'a' + b'b'", {}, "b'ab'",
+            fully_evaluated=True, expected_value=bytes('ab', encoding='ascii'))
+
 
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")

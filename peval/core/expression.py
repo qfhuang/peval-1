@@ -157,8 +157,10 @@ def wrap_in_ast(value, state):
             return ast.NameConstant(value=obj), state
         else:
             return ast.Name(id=str(obj), ctx=ast.Load()), state
-    elif type(obj) in (str,):
+    elif type(obj) == str or (sys.version_info < (3,) and type(obj) == unicode):
         return ast.Str(s=obj), state
+    elif sys.version_info >= (3,) and type(obj) == bytes:
+        return ast.Bytes(s=obj), state
     elif type(obj) in (int, float, complex):
         return ast.Num(n=obj), state
     elif value.preferred_name is not None:
@@ -320,6 +322,10 @@ class _peval_expression_node:
 
     @staticmethod
     def handle_Str(node, state, ctx):
+        return KnownValue(node.s), state
+
+    @staticmethod
+    def handle_Bytes(node, state, ctx):
         return KnownValue(node.s), state
 
     @staticmethod
