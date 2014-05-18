@@ -33,52 +33,6 @@ def get_fn_arg_id(fn_arg_node):
         return fn_arg_node.arg
 
 
-def value_to_node(value, gen_sym, preferred_name=None):
-
-    number_types = (int, float, complex) + (tuple() if sys.version_info >= (3,) else (long,))
-
-    if value is True or value is False or value is None:
-        if sys.version_info >= (3, 4):
-            return ast.NameConstant(value=value), gen_sym, {}
-        else:
-            # Before Py3.4 these constants are not actually constants,
-            # but just builtin variables, and can, therefore, be redefined.
-            name, gen_sym = gen_sym(str(value))
-            return ast.Name(id=str(value), ctx=ast.Load()), gen_sym, {name: value}
-    elif type(value) == str or (sys.version_info < (3,) and type(value) == unicode):
-        return ast.Str(s=value), gen_sym, {}
-    elif sys.version_info >= (3,) and type(value) == bytes:
-        return ast.Bytes(s=value), gen_sym, {}
-    elif type(value) in number_types:
-        return ast.Num(n=value), gen_sym, {}
-    else:
-        if preferred_name is None:
-            name, gen_sym = gen_sym('temp')
-        else:
-            name = preferred_name
-        return ast.Name(id=name, ctx=ast.Load()), gen_sym, {name: value}
-
-
-def get_node_value_if_known(node, constants):
-    ''' Return tuple of boolean(value is known), and value itself
-    '''
-    known = lambda x: (True, x)
-    if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
-        name = node.id
-        if name in constants:
-            return known(constants[name])
-        else:
-            if hasattr(builtins, name):
-                return known(getattr(builtins, name))
-    elif isinstance(node, ast.Num):
-        return known(node.n)
-    elif isinstance(node, ast.Str):
-        return known(node.s)
-    elif sys.version_info >= (3, 4, 0) and isinstance(node, ast.NameConstant):
-        return known(node.value)
-    return False, None
-
-
 def replace_fields(node, **kwds):
     new_kwds = dict(ast.iter_fields(node))
     new_kwds.update(kwds)

@@ -1,7 +1,8 @@
 import ast
 import copy
 
-from peval.utils import replace_fields, get_node_value_if_known
+from peval.utils import replace_fields
+from peval.core.value import try_node_to_value
 from peval.core.walker import ast_transformer
 
 
@@ -68,8 +69,8 @@ class remove_unreachable_branches:
 
     @staticmethod
     def handle_If(node, ctx, walk_field, **kwds):
-        is_known, test = get_node_value_if_known(node.test, ctx.bindings)
-        if is_known:
+        evaluated, test = try_node_to_value(node.test, ctx.bindings)
+        if evaluated:
             taken_node = node.body if test else node.orelse
             new_node = walk_field(taken_node, block_context=True)
             return new_node

@@ -207,7 +207,8 @@ class Function(object):
         (both globals and closure variables).
         """
 
-        result = dict(self.globals)
+        result = dict(self.globals['__builtins__'])
+        result.update(self.globals)
 
         for name, val in zip(self.closure_names, self.closure_cells):
             result[name] = val.cell_contents

@@ -2,7 +2,8 @@ import ast
 import copy
 import sys
 
-from peval.utils import get_fn_arg_id, value_to_node, get_node_value_if_known
+from peval.utils import get_fn_arg_id
+from peval.core.value import value_to_node, try_node_to_value
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
@@ -27,8 +28,8 @@ def inliner(node, state, prepend, **kwds):
         gen_sym = state.gen_sym
         constants = state.constants
 
-        is_known, fn = get_node_value_if_known(node.func, constants)
-        if is_known and is_inlined_fn(fn):
+        evaluated, fn = try_node_to_value(node.func, constants)
+        if evaluated and is_inlined_fn(fn):
             return_name, gen_sym = gen_sym('return')
             inlined_body, gen_sym, constants = _inline(node, gen_sym, return_name, constants)
 

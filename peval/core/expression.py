@@ -2,30 +2,10 @@ import sys
 import ast
 import operator
 
-from peval.utils import ast_equal, value_to_node
+from peval.utils import ast_equal
+from peval.core.value import KnownValue, is_known_value, kvalue_to_node, node_to_maybe_kvalue
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
-
-
-class KnownValue(object):
-
-    def __init__(self, value, preferred_name=None):
-        self.value = value
-        self.preferred_name = preferred_name
-
-    def __str__(self):
-        return (
-            "<" + str(self.value)
-            + (" (" + self.preferred_name + ")" if self.preferred_name is not None else "")
-            + ">")
-
-    def __repr__(self):
-        return "KnownValue({value}, preferred_name={name})".format(
-            value=repr(self.value), name=self.preferred_name)
-
-
-def is_known(value):
-    return type(value) == KnownValue
 
 
 UNARY_OPS = {
@@ -146,28 +126,26 @@ def is_function_evalable(function):
     return True
 
 
-def wrap_in_ast(value, state):
-    if isinstance(value, ast.AST):
-        return value, state
-
-    node, gen_sym, binding = value_to_node(
-        value.value, state.gen_sym, preferred_name=value.preferred_name)
-    state = state.update(
-        gen_sym=gen_sym,
-        temp_bindings=state.temp_bindings.update(binding))
-
-    return node, state
+def maybe_kvalue_to_node(kvalue_or_node, state):
+    if is_known_value(kvalue_or_node):
+        node, gen_sym, binding = kvalue_to_node(kvalue_or_node, state.gen_sym)
+        state = state.update(
+            gen_sym=gen_sym,
+            temp_bindings=state.temp_bindings.update(binding))
+        return node, state
+    else:
+        return kvalue_or_node, state
 
 
 def map_wrap(container, state):
     if container is None:
         result = None
     elif isinstance(container, (KnownValue, ast.AST)):
-        result, state = wrap_in_ast(container, state)
+        result, state = maybe_kvalue_to_node(container, state)
     elif isinstance(container, list):
         result = []
         for elem in container:
-            elem_result, state = wrap_in_ast(elem, state)
+            elem_result, state = maybe_kvalue_to_node(elem, state)
             result.append(elem_result)
     return result, state
 
@@ -196,7 +174,7 @@ def peval_boolop(state, ctx, op, values):
 
         # Short circuit
         # FIXME: implicit call of bool() on a value --- can be mutating
-        if is_known(new_value):
+        if is_known_value(new_value):
             if ((isinstance(op, ast.And) and not new_value.value)
                     or (isinstance(op, ast.Or) and new_value.value)):
                 return new_value, state
@@ -281,11 +259,15 @@ def peval_compare(state, ctx, node):
         return ast.BoolOp(op=ast.And(), values=nodes), state
 
 
-def _peval_expression(node_or_value, state, ctx):
-    if isinstance(node_or_value, KnownValue):
-        return node_or_value, state
-    else:
-        return _peval_expression_node(node_or_value, state, ctx)
+def _peval_expression(kvalue_or_node, state, ctx):
+    if is_known_value(kvalue_or_node):
+        return kvalue_or_node, state
+
+    kvalue_or_node = node_to_maybe_kvalue(kvalue_or_node, ctx.bindings)
+    if is_known_value(kvalue_or_node):
+        return kvalue_or_node, state
+
+    return _peval_expression_node(kvalue_or_node, state, ctx)
 
 
 @Dispatcher
@@ -296,32 +278,13 @@ class _peval_expression_node:
         return node, state
 
     @staticmethod
-    def handle_Name(node, state, ctx):
-        if node.id in ctx.bindings:
-            return KnownValue(ctx.bindings[node.id], preferred_name=node.id), state
-        else:
-            return node, state
-
-    @staticmethod
-    def handle_Num(node, state, ctx):
-        return KnownValue(node.n), state
-
-    @staticmethod
-    def handle_Str(node, state, ctx):
-        return KnownValue(node.s), state
-
-    @staticmethod
-    def handle_Bytes(node, state, ctx):
-        return KnownValue(node.s), state
-
-    @staticmethod
     def handle_Tuple(node, state, ctx):
         elts = []
         for elt in node.elts:
             elt_value, state = _peval_expression(elt, state, ctx)
             elts.append(elt_value)
 
-        if all(is_known(elt) for elt in elts):
+        if all(is_known_value(elt) for elt in elts):
             return KnownValue(tuple(elts)), state
         else:
             elts, state = map_wrap(elts, state)
@@ -364,17 +327,17 @@ def peval_expression(node, gen_sym, bindings, py2_division=False):
     state = immutableadict(gen_sym=gen_sym, temp_bindings=immutableadict())
 
     result, state = _peval_expression(node, state, ctx)
-    if isinstance(result, ast.AST):
-        eval_result = EvaluationResult(
-            fully_evaluated=False,
-            node=result,
-            temp_bindings=state.temp_bindings)
-    else:
-        result_node, state = wrap_in_ast(result, state)
+    if is_known_value(result):
+        result_node, state = maybe_kvalue_to_node(result, state)
         eval_result = EvaluationResult(
             fully_evaluated=True,
             value=result.value,
             node=result_node,
+            temp_bindings=state.temp_bindings)
+    else:
+        eval_result = EvaluationResult(
+            fully_evaluated=False,
+            node=result,
             temp_bindings=state.temp_bindings)
 
     return eval_result, state.gen_sym
