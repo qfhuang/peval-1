@@ -159,7 +159,7 @@ def wrap_in_ast(value, state):
             return ast.Name(id=str(obj), ctx=ast.Load()), state
     elif type(obj) in (str,):
         return ast.Str(s=obj), state
-    elif type(obj) in (int, float):
+    elif type(obj) in (int, float, complex):
         return ast.Num(n=obj), state
     elif value.preferred_name is not None:
         return ast.Name(id=value.preferred_name, ctx=ast.Load()), state

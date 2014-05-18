@@ -19,7 +19,15 @@ def check_peval_expression(source, bindings, expected_source,
         py2_division=False):
 
     source_tree = expression_ast(source)
-    expected_tree = expression_ast(expected_source)
+
+    # In some cases we need to enforce the expected node,
+    # because it cannot be obtained by parsing
+    # (e.g. "-5" is parsed as "UnaryOp(op=USub(), Num(n=5))", not as "Num(n=-5)").
+    # But we expect the latter from a fully evaluated expression.
+    if isinstance(expected_source, str):
+        expected_tree = expression_ast(expected_source)
+    else:
+        expected_tree = expected_source
 
     gen_sym = GenSym()
     result, gen_sym = peval_expression(source_tree, gen_sym, bindings, py2_division=py2_division)
@@ -97,6 +105,15 @@ def test_comparison_op_support():
         "1 in (3, 4, 5)", {}, "False", fully_evaluated=True, expected_value=False)
     check_peval_expression(
         "'a' not in 'abcd'", {}, "False", fully_evaluated=True, expected_value=False)
+
+
+def test_literal_support():
+    check_peval_expression("1 + 2", {}, "3", fully_evaluated=True, expected_value=3)
+    check_peval_expression("1. + 2.", {}, "3.", fully_evaluated=True, expected_value=3.)
+
+    # Writing the node explicitly, sine "1+2j" is parsed as the application of "+"
+    check_peval_expression(
+        "1 + 2j", {}, ast.Num(n=1 + 2j), fully_evaluated=True, expected_value=1 + 2j)
 
 
 def test_partial_bin_op():
