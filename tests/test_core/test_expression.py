@@ -1,4 +1,5 @@
 import ast
+import sys
 
 import pytest
 
@@ -42,8 +43,15 @@ def test_bin_op_support():
     check_peval_expression("1 + 2", {}, "3", fully_evaluated=True, expected_value=3)
     check_peval_expression("1 - 2", {}, "-1", fully_evaluated=True, expected_value=-1)
     check_peval_expression("2 * 3", {}, "6", fully_evaluated=True, expected_value=6)
-    check_peval_expression(
-        "9 / 2", {}, "4", fully_evaluated=True, expected_value=4, py2_division=True)
+    if sys.version_info < (3,):
+        check_peval_expression(
+            "9 / 2", {}, "4", fully_evaluated=True, expected_value=4, py2_division=True)
+        check_peval_expression(
+            "9 / 2.", {}, "4.5", fully_evaluated=True, expected_value=4.5, py2_division=True)
+    else:
+        with pytest.raises(ValueError):
+            check_peval_expression(
+                "9 / 2", {}, "4", fully_evaluated=True, expected_value=4, py2_division=True)
     check_peval_expression(
         "9 / 2", {}, "4.5", fully_evaluated=True, expected_value=4.5, py2_division=False)
     check_peval_expression("9 // 2", {}, "4", fully_evaluated=True, expected_value=4)

@@ -363,6 +363,11 @@ class _peval_expression_node:
 
 def peval_expression(node, gen_sym, bindings, py2_division=False):
 
+    # We do not really need the Py2-style division in Py3,
+    # since it never occurs in actual code.
+    if py2_division and sys.version_info >= (3,):
+        raise ValueError("`py2_division` is not supported on Python 3.x")
+
     ctx = immutableadict(bindings=bindings, py2_division=py2_division)
     state = immutableadict(gen_sym=gen_sym, temp_bindings=immutableadict())
 
