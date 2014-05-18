@@ -66,6 +66,31 @@ def test_unarry_op_support():
     check_peval_expression("~4", {}, "-5", fully_evaluated=True, expected_value=-5)
 
 
+def test_comparison_op_support():
+    """
+    Check that all possible comparison operators are handled by the evaluator.
+    """
+    check_peval_expression("1 == 2", {}, "False", fully_evaluated=True, expected_value=False)
+    check_peval_expression("2 != 3", {}, "True", fully_evaluated=True, expected_value=True)
+    check_peval_expression("1 < 10", {}, "True", fully_evaluated=True, expected_value=True)
+    check_peval_expression("1 <= 1", {}, "True", fully_evaluated=True, expected_value=True)
+    check_peval_expression("2 > 5", {}, "False", fully_evaluated=True, expected_value=False)
+    check_peval_expression("4 >= 6", {}, "False", fully_evaluated=True, expected_value=False)
+
+    class Foo: pass
+    x = Foo()
+    y = Foo()
+    check_peval_expression(
+        "a is b", dict(a=x, b=x), "True", fully_evaluated=True, expected_value=True)
+    check_peval_expression(
+        "a is not b", dict(a=x, b=y), "True", fully_evaluated=True, expected_value=True)
+
+    check_peval_expression(
+        "1 in (3, 4, 5)", {}, "False", fully_evaluated=True, expected_value=False)
+    check_peval_expression(
+        "'a' not in 'abcd'", {}, "False", fully_evaluated=True, expected_value=False)
+
+
 def test_partial_bin_op():
     check_peval_expression(
         "5 + 6 + a", {},
