@@ -7,7 +7,7 @@ from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 
 
-class KnownValue:
+class KnownValue(object):
 
     def __init__(self, value, preferred_name=None):
         self.value = value
