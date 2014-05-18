@@ -91,11 +91,12 @@ def ast_equal(node1, node2):
 
     for attr, value1 in ast.iter_fields(node1):
         value2 = getattr(node2, attr)
-        if (type(value1) == list
-                and any(not ast_equal(elem1, elem2) for elem1, elem2 in zip(value1, value2))):
-            return False
-        elif isinstance(value1, ast.AST) and not ast_equal(value1, value2):
-            return False
+        if type(value1) == list:
+            if not all(ast_equal(elem1, elem2) for elem1, elem2 in zip(value1, value2)):
+                return False
+        elif isinstance(value1, ast.AST):
+            if not ast_equal(value1, value2):
+                return False
         elif value1 != value2:
             return False
 
