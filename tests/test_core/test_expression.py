@@ -64,7 +64,7 @@ def test_bin_op_support():
     check_peval_expression("17 & 3", {}, "1", fully_evaluated=True, expected_value=1)
 
 
-def test_unarry_op_support():
+def test_unary_op_support():
     """
     Check that all possible unary operators are handled by the evaluator.
     """
