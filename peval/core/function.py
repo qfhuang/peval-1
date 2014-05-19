@@ -207,7 +207,13 @@ class Function(object):
         (both globals and closure variables).
         """
 
-        result = dict(self.globals['__builtins__'])
+        # Builtins can be either a dict or a module
+        builtins = self.globals['__builtins__']
+        if isinstance(builtins, dict):
+            result = dict(builtins)
+        else:
+            result = dict(vars(builtins))
+
         result.update(self.globals)
 
         for name, val in zip(self.closure_names, self.closure_cells):
