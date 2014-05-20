@@ -153,7 +153,7 @@ def forward_transfer(gen_sym, in_env, statement):
         return gen_sym, out_env, new_exprs, result.temp_bindings
 
     else:
-        raise NotImplementedError(type(statement))
+        return gen_sym, in_env, {}, {}
 
 
 class State:
@@ -270,11 +270,6 @@ def fold(tree, constants):
     cfg = build_cfg(statements)
     gen_sym = GenSym.for_tree(tree)
     new_nodes, temp_bindings = maximal_fixed_point(gen_sym, cfg.graph, cfg.enter, constants)
-
-    #for nid, exprs in new_nodes.items():
-    #    for expr in exprs:
-    #        print(expr.path, astunparse.dump(expr.node))
-
     constants = dict(constants)
     constants.update(temp_bindings)
     new_tree = replace_exprs(tree, new_nodes)
