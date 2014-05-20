@@ -53,7 +53,7 @@ def check_partial_apply(func, args=None, kwds=None,
 # Test simple inlining
 
 def test_simple_return():
-
+    pytest.xfail()
     @inline
     def inlined(y):
         l = []
@@ -83,7 +83,7 @@ def test_simple_return():
         ''')
 
 def test_complex_return():
-
+    pytest.xfail()
     @inline
     def inlined(y):
         l = []
@@ -152,7 +152,6 @@ def power_inline(x, n):
 # Recursion inlining test
 
 def test_no_inlining():
-    pytest.xfail()
     check_partial_apply(
         power, kwds=dict(n=1),
         expected_source='''
@@ -162,9 +161,6 @@ def test_no_inlining():
 
 
 def test_inlining_1():
-
-    # Does not work until the CFG analyzer is implemented properly
-    pytest.xfail()
 
     check_partial_apply(
         power_inline, kwds=dict(n=1),
@@ -178,8 +174,8 @@ def test_inlining_1():
         expected_source='''
         @inline
         def power_inline(x):
-            __return_11 = (x * 1)
-            __return_7 = (__return_11 * __return_11)
-            __return_3 = (__return_7 * __return_7)
-            return x * __return_3
+            __peval_return_2 = (x * 1)
+            __peval_return_1 = (__peval_return_2 * __peval_return_2)
+            __peval_return_6 = (__peval_return_1 * __peval_return_1)
+            return (x * __peval_return_6)
         ''')
