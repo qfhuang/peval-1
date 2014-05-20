@@ -15,11 +15,10 @@ def partial_apply(fn, *args, **kwds):
     else:
         bound_function = function
 
-    new_module, bindings = optimized_ast(
-        ast.Module(body=[bound_function.tree]),
+    new_tree, bindings = optimized_ast(
+        bound_function.tree,
         bound_function.get_external_variables())
 
-    new_tree = new_module.body[0]
     globals_ = dict(bound_function.globals)
     globals_.update(bindings)
 
