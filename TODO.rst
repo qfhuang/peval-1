@@ -22,6 +22,8 @@ core/function
 
 * BUG: preserve __future__ imports when re-evaluating functions.
 * BUG: builtins are located in a separate scope (``globals()['__builtins__']``) and currently cannot be resolved.
+* BUG: when binding parameters, do not add them to globals, but instead put the assignments at the start of the function.
+  This will result in a more correct behavior.
 
 
 core/expression
