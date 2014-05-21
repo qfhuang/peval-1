@@ -53,7 +53,7 @@ def check_partial_apply(func, args=None, kwds=None,
 # Test simple inlining
 
 def test_simple_return():
-    pytest.xfail()
+
     @inline
     def inlined(y):
         l = []
@@ -83,7 +83,7 @@ def test_simple_return():
         ''')
 
 def test_complex_return():
-    pytest.xfail()
+
     @inline
     def inlined(y):
         l = []

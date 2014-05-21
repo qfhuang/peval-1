@@ -87,11 +87,6 @@ def test_if_on_stupid_power():
 
 def test_if_on_recursive_power():
 
-    # Currently this tests goes into infinite recursion because
-    # the constant propagation is broken.
-    # Should work again once it's operational.
-    pytest.xfail()
-
     @inline
     def power(x, n):
         if not isinstance(n, int) or n < 0:
