@@ -75,7 +75,7 @@ def stupid_power(n, x):
             return x
         v = 1
         for _ in xrange(n):
-            v *= x
+            v = v * x
         return v
 
 
