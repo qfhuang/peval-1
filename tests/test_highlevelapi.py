@@ -75,10 +75,10 @@ def test_simple_return():
             a = x.foo()
             if a:
                 b = a * 10
-            __peval_mangled_3 = []
-            for __peval_mangled_4 in xrange(x):
-                __peval_mangled_3.append(x.do_stuff())
-            a = (b + __peval_mangled_3)
+            __peval_mangled_2 = []
+            for __peval_mangled_3 in xrange(x):
+                __peval_mangled_2.append(x.do_stuff())
+            a = (b + __peval_mangled_2)
             return a
         ''')
 
@@ -108,24 +108,25 @@ def test_complex_return():
             a = x.foo()
             if a:
                 b = a * 10
-                __peval_mangled_2 = x - 3
-                __peval_while_5 = {true_const}
-                while __peval_while_5:
-                    __peval_while_5 = {false_const}
-                    __peval_mangled_3 = []
-                    for __peval_mangled_4 in iter(__peval_mangled_2):
-                        __peval_mangled_3.append(__peval_mangled_4.do_stuff())
-                    if __peval_mangled_3:
-                        __peval_return_1 = __peval_mangled_3
+                __peval_mangled_1 = x - 3
+                __peval_while_1 = {true_const}
+                while __peval_while_1:
+                    __peval_while_1 = {false_const}
+                    __peval_mangled_2 = []
+                    for __peval_mangled_3 in iter(__peval_mangled_1):
+                        __peval_mangled_2.append(__peval_mangled_3.do_stuff())
+                    if __peval_mangled_2:
+                        __peval_return_1 = __peval_mangled_2
                         break
                     else:
-                        __peval_return_1 = None
+                        __peval_return_1 = {none_const}
                         break
                 a = __peval_return_1 + b
             return a
         '''.format(
-            true_const='__peval_True_6' if sys.version_info < (3, 4) else 'True',
-            false_const='__peval_False_7' if sys.version_info < (3, 4) else 'False'))
+            true_const='__peval_True_1' if sys.version_info < (3, 4) else 'True',
+            false_const='__peval_False_1' if sys.version_info < (3, 4) else 'False',
+            none_const='__peval_None_1' if sys.version_info < (3, 4) else 'None'))
 
 
 def power(x, n):
@@ -174,8 +175,8 @@ def test_inlining_1():
         expected_source='''
         @inline
         def power_inline(x):
-            __peval_return_2 = (x * 1)
-            __peval_return_1 = (__peval_return_2 * __peval_return_2)
-            __peval_return_6 = (__peval_return_1 * __peval_return_1)
-            return (x * __peval_return_6)
+            __peval_return_3 = (x * 1)
+            __peval_return_1 = (__peval_return_3 * __peval_return_3)
+            __peval_return_2 = (__peval_return_1 * __peval_return_1)
+            return (x * __peval_return_2)
         ''')

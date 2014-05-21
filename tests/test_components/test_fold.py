@@ -31,7 +31,7 @@ def test_fold():
                     b = 2
                     c = 4
                 return 1 + b + c + x
-            """.format(false_const='__peval_False_20' if sys.version_info < (3, 4) else 'False'))
+            """.format(false_const='__peval_False_1' if sys.version_info < (3, 4) else 'False'))
 
 
 def test_if_visit_only_true_branch():
