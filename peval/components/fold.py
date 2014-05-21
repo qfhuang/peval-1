@@ -231,6 +231,7 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
             forward_transfer(gen_sym, new_in_env, graph._nodes[node_id].ast_node)
 
         states[node_id].exprs = new_exprs
+        states[node_id].temp_bindings = temp_bindings
 
         if new_out_env != states[node_id].out_env:
             states[node_id] = State(new_out_env, new_exprs, temp_bindings)
