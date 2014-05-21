@@ -17,6 +17,7 @@ class Value:
     def __init__(self, value=None, undefined=False):
         if undefined:
             self.defined = False
+            self.value = None
         else:
             self.defined = True
             self.value = value
@@ -26,6 +27,12 @@ class Value:
             return "<undefined>"
         else:
             return "<" + str(self.value) + ">"
+
+    def __eq__(self, other):
+        return self.defined == other.defined and self.value == other.value
+
+    def __ne__(self, other):
+        return self.defined != other.defined or self.value != other.value
 
     def __repr__(self):
         if not self.defined:
@@ -67,6 +74,15 @@ class Environment:
 
     def known_values(self):
         return dict((name, value.value) for name, value in self.values.items() if value.defined)
+
+    def __eq__(self, other):
+        return self.values == other.values
+
+    def __ne__(self, other):
+        return self.values != other.values
+
+    def __repr__(self):
+        return "Environment(values={values})".format(values=self.values)
 
 
 def meet_envs(env1, env2):
@@ -153,7 +169,7 @@ def forward_transfer(gen_sym, in_env, statement):
         return gen_sym, out_env, new_exprs, result.temp_bindings
 
     else:
-        return gen_sym, in_env, {}, {}
+        return gen_sym, in_env, [], {}
 
 
 class State:
@@ -185,7 +201,7 @@ def get_sorted_nodes(graph, enter):
 def maximal_fixed_point(gen_sym, graph, enter, bindings):
 
     states = dict(
-        (node_id, State(Environment(), graph._nodes[node_id].ast_node, {}))
+        (node_id, State(Environment.from_dict(bindings), [], {}))
         for node_id in graph._nodes)
     enter_env = Environment.from_dict(bindings)
 
@@ -194,8 +210,10 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
     todo_forward = get_sorted_nodes(graph, enter)
     todo_forward_set = set(todo_forward)
 
+    make_label = lambda nid: astunparse.unparse(graph._nodes[nid].ast_node).strip().split("\n")[0]
+
     while len(todo_forward) > 0:
-        node_id = todo_forward.pop()
+        node_id = todo_forward.pop(0)
         todo_forward_set.remove(node_id)
         state = states[node_id]
 
@@ -211,6 +229,9 @@ def maximal_fixed_point(gen_sym, graph, enter, bindings):
         # propagate information for this basic block
         gen_sym, new_out_env, new_exprs, temp_bindings = \
             forward_transfer(gen_sym, new_in_env, graph._nodes[node_id].ast_node)
+
+        states[node_id].exprs = new_exprs
+
         if new_out_env != states[node_id].out_env:
             states[node_id] = State(new_out_env, new_exprs, temp_bindings)
             for dest_id in sorted(graph.children_of(node_id)):
