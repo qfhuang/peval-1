@@ -2,7 +2,6 @@ General
 -------
 
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
-* Check identity in ``replace_fields()`` and return the old node if all the replaced values are the same objects as the old ones.
 
 
 core/symbol_finder

@@ -35,6 +35,11 @@ def get_fn_arg_id(fn_arg_node):
 
 def replace_fields(node, **kwds):
     new_kwds = dict(ast.iter_fields(node))
+    for key, value in kwds.items():
+        if value is not new_kwds[key]:
+            break
+    else:
+        return node
     new_kwds.update(kwds)
     return type(node)(**new_kwds)
 
