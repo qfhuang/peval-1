@@ -40,7 +40,7 @@ def remove_simple_assignments(node):
 
     while len(remaining_nodes) > 0:
         cur_node = remaining_nodes.pop(0)
-        if isinstance(cur_node, ast.Assign):
+        if type(cur_node) == ast.Assign:
             can_remove, dest_name, src_name = _can_remove_assignment(cur_node, remaining_nodes)
             if can_remove:
                 remaining_nodes = replace_name(
@@ -62,8 +62,8 @@ def _can_remove_assignment(assign_node, node_list):
     * it is "simple"
     * result it not used in "Store" context elsewhere
     """
-    if (len(assign_node.targets) == 1 and isinstance(assign_node.targets[0], ast.Name)
-            and isinstance(assign_node.value, ast.Name)):
+    if (len(assign_node.targets) == 1 and type(assign_node.targets[0]) == ast.Name
+            and type(assign_node.value) == ast.Name):
         src_name = assign_node.value.id
         dest_name = assign_node.targets[0].id
         if dest_name not in find_symbol_creations(node_list):
@@ -75,7 +75,7 @@ def _can_remove_assignment(assign_node, node_list):
 class replace_name:
     @staticmethod
     def handle_Name(node, ctx, **kwds):
-        if isinstance(node.ctx, ast.Load) and node.id == ctx.dest_name:
+        if type(node.ctx) == ast.Load and node.id == ctx.dest_name:
             return replace_fields(node, id=ctx.src_name)
         else:
             return node

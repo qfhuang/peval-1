@@ -20,7 +20,7 @@ class _find_symbol_creations:
 
     @staticmethod
     def handle_Name(node, state, **kwds):
-        if isinstance(node.ctx, STORE_CTXS):
+        if type(node.ctx) in STORE_CTXS:
             return state.update(names=state.names.add(node.id))
         else:
             return state
@@ -49,7 +49,7 @@ class _find_symbol_usages:
 
     @staticmethod
     def handle_Name(node, state, **kwds):
-        if isinstance(node.ctx, ast.Load):
+        if type(node.ctx) == ast.Load:
             return state.update(names=state.names.add(node.id))
         else:
             return state

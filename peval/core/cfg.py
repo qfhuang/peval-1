@@ -173,7 +173,7 @@ def get_nontrivial_nodes(graph):
 
     for node_id, node_obj in graph._nodes.items():
         node = node_obj.ast_node
-        if not isinstance(node, (ast.Break, ast.Continue, ast.Pass) + try_cls):
+        if type(node) not in ((ast.Break, ast.Continue, ast.Pass) + try_cls):
             nodes.append(node_id)
     return nodes
 
@@ -279,7 +279,7 @@ def _build_try_finally_block_cfg(try_node, body, handlers, orelse, finalbody):
 
 def _build_try_finally_cfg(node):
     # Pre-Py3.3 try block with the `finally` part
-    if isinstance(node.body[0], ast.TryExcept):
+    if type(node.body[0]) == ast.TryExcept:
         # If there are exception handlers, the body consists of a single TryExcept node
         return _build_try_finally_block_cfg(
             node, node.body[0].body, node.body[0].handlers, node.body[0].orelse, node.finalbody)
@@ -346,7 +346,7 @@ def _build_cfg(statements):
         exits = cfg.exits
         jumps = jumps.join(cfg.jumps)
 
-        if isinstance(node, (ast.Break, ast.Continue, ast.Return)):
+        if type(node) in (ast.Break, ast.Continue, ast.Return):
             # Issue a warning about unreachable code?
             break
 

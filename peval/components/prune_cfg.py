@@ -36,10 +36,10 @@ def filter_block(node_list):
 
     new_list = []
     for node in node_list:
-        if isinstance(node, ast.Pass):
+        if type(node) == ast.Pass:
             continue
         new_list.append(node)
-        if isinstance(node, (ast.Return, ast.Break, ast.Continue, ast.Raise)):
+        if type(node) in (ast.Return, ast.Break, ast.Continue, ast.Raise):
             break
     if len(new_list) == len(node_list):
         return node_list
@@ -53,9 +53,9 @@ class simplify_loops:
     @staticmethod
     def handle_While(node, **kwds):
         last_node = node.body[-1]
-        unconditional_jump = isinstance(last_node, (ast.Break, ast.Raise, ast.Return))
+        unconditional_jump = type(last_node) in (ast.Break, ast.Raise, ast.Return)
         if unconditional_jump:
-            if isinstance(last_node, ast.Break):
+            if type(last_node) == ast.Break:
                 new_body = node.body[:-1]
             else:
                 new_body = node.body

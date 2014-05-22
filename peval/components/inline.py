@@ -24,7 +24,7 @@ def inliner(node, state, prepend, **kwds):
     and handle mutations otherwise.
     Inline function if it is marked with @inline.
     '''
-    if isinstance(node, ast.Call):
+    if type(node) == ast.Call:
         gen_sym = state.gen_sym
         constants = state.constants
 
@@ -70,7 +70,7 @@ def _inline(node, gen_sym, return_name, constants):
 
     inlined_code = new_fn_ast.body
 
-    if isinstance(inlined_code[-1], ast.Break): # single return
+    if type(inlined_code[-1]) == ast.Break: # single return
         inlined_body.extend(inlined_code[:-1])
     else: # multiple returns - wrap in "while"
         while_var, gen_sym = gen_sym('while')

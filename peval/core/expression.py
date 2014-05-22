@@ -66,14 +66,14 @@ def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs
     can_eval = True
 
     function_value, state = _peval_expression(function, state, ctx)
-    if isinstance(function_value, ast.AST):
+    if not is_known_value(function_value):
         can_eval = False
 
     args_values = []
     for arg in args:
         value, state = _peval_expression(arg, state, ctx)
         args_values.append(value)
-        if isinstance(value, ast.AST):
+        if not is_known_value(value):
             can_eval = False
 
     keywords_values = []
@@ -175,14 +175,14 @@ def peval_boolop(state, ctx, op, values):
         # Short circuit
         # FIXME: implicit call of bool() on a value --- can be mutating
         if is_known_value(new_value):
-            if ((isinstance(op, ast.And) and not new_value.value)
-                    or (isinstance(op, ast.Or) and new_value.value)):
+            if ((type(op) == ast.And and not new_value.value)
+                    or (type(op) == ast.Or and new_value.value)):
                 return new_value, state
         else:
             new_values.append(new_value)
 
     if len(new_values) == 0:
-        return KnownValue(isinstance(op, ast.And)), state
+        return KnownValue(type(op) == ast.And), state
     elif len(new_values) == 1:
         return new_values[0], state
     else:
@@ -197,7 +197,7 @@ def peval_binop(state, ctx, op, left, right):
         func = BIN_OPS[type(op)]
 
     result, state = peval_call(state, ctx, func, args=[left, right])
-    if isinstance(result, ast.AST):
+    if not is_known_value(result):
         state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
         result = ast.BinOp(op=op, left=result.args[0], right=result.args[1])
     return result, state
@@ -208,7 +208,7 @@ def peval_single_compare(state, ctx, op, left, right):
     func = COMPARE_OPS[type(op)]
 
     result, state = peval_call(state, ctx, func, args=[left, right])
-    if isinstance(result, ast.AST):
+    if not is_known_value(result):
         state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
         result = ast.Compare(left=result.args[0], ops=[op], comparators=[result.args[1]])
     return result, state
@@ -233,18 +233,18 @@ def peval_compare(state, ctx, node):
 
     result, state = peval_boolop(state, ctx, ast.And(), pair_values)
 
-    if isinstance(result, KnownValue):
+    if is_known_value(result):
         return result, state
 
-    if not isinstance(result, ast.BoolOp):
+    if type(result) != ast.BoolOp:
         return result, state
 
     # Glueing non-evaluated comparisons back together.
     nodes = [result.values[0]]
     for value in result.values[1:]:
         last_node = nodes[-1]
-        if (isinstance(last_node, ast.Compare)
-                and isinstance(value, ast.Compare)
+        if (type(last_node) == ast.Compare
+                and type(value) == ast.Compare
                 and ast_equal(last_node.comparators[-1], value.left)):
             nodes[-1] = ast.Compare(
                 left=last_node.left,
@@ -306,7 +306,7 @@ class _peval_expression_node:
     def handle_UnaryOp(node, state, ctx):
         result, state = peval_call(
             state, ctx, UNARY_OPS[type(node.op)], args=[node.operand])
-        if isinstance(result, ast.AST):
+        if not is_known_value(result):
             state = state.update(temp_bindings=state.temp_bindings.del_(result.func.id))
             result = ast.UnaryOp(op=node.op, operand=result.args[0])
         return result, state

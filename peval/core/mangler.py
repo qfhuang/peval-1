@@ -10,7 +10,7 @@ from peval.core.walker import ast_walker
 def _visit_local(gen_sym, node, to_mangle, mangled):
     ''' Replacing known variables with literal values
     '''
-    is_name = isinstance(node, ast.Name)
+    is_name = type(node) == ast.Name
 
     node_id = node.id if is_name else node.arg
 

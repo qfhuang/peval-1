@@ -181,7 +181,7 @@ class _Walker:
                     if new_node is not node:
                         transformed = True
                     new_lst.append(new_node)
-                elif isinstance(new_node, list):
+                elif type(new_node) == list:
                     transformed = True
                     new_lst.extend(new_node)
                 elif new_node is None:
@@ -207,7 +207,7 @@ class _Walker:
         """
         if isinstance(value, ast.AST):
             return self._walk_node(value, state, ctx)
-        elif isinstance(value, list):
+        elif type(value) == list:
             return self._walk_list(value, state, ctx, block_context=block_context)
         else:
             return value, state
@@ -304,10 +304,10 @@ class _Walker:
         new_node, new_state, to_visit_after, to_skip_fields = self._handle_node(
             node, state, ctx, list_context=list_context, visiting_after=False)
 
-        if isinstance(new_node, ast.AST) and new_node is node and not to_skip_fields:
+        if new_node is node and not to_skip_fields:
             new_node, new_state = self._walk_fields(new_node, new_state, ctx)
 
-        if isinstance(new_node, ast.AST) and to_visit_after:
+        if to_visit_after:
             new_node, new_state, _, _ = self._handle_node(
                 new_node, new_state, ctx, list_context=list_context, visiting_after=True)
 

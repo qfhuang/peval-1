@@ -17,7 +17,7 @@ def eval_function_def(function_def, globals_=None):
     Returns a callable function (a ``types.FunctionType`` object).
     """
 
-    assert isinstance(function_def, ast.FunctionDef)
+    assert type(function_def) == ast.FunctionDef
 
     # Making a copy before mutating
     module = ast.Module(body=[copy.deepcopy(function_def)])
@@ -44,7 +44,7 @@ def eval_function_def_as_closure(function_def, closure_names, globals_=None):
         that will be used during the call.
     """
 
-    assert isinstance(function_def, ast.FunctionDef)
+    assert type(function_def) == ast.FunctionDef
 
     if sys.version_info >= (3, 4):
         none = ast.NameConstant(value=None)
@@ -134,7 +134,7 @@ def filter_arguments(arguments, bound_argnames):
     Returns the new ``ast.arguments`` node.
     """
 
-    assert isinstance(arguments, ast.arguments)
+    assert type(arguments) == ast.arguments
 
     new_params = dict(ast.iter_fields(arguments))
 
@@ -172,7 +172,7 @@ def filter_function_def(function_def, bound_argnames):
     Returns the new ``ast.arguments`` node.
     """
 
-    assert isinstance(function_def, ast.FunctionDef)
+    assert type(function_def) == ast.FunctionDef
 
     new_args = filter_arguments(function_def.args, bound_argnames)
 
