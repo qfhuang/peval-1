@@ -19,16 +19,8 @@ core/function
 -------------
 
 * BUG: preserve __future__ imports when re-evaluating functions.
-* BUG: builtins are located in a separate scope (``globals()['__builtins__']``) and currently cannot be resolved.
 * BUG: when binding parameters, do not add them to globals, but instead put the assignments at the start of the function.
   This will result in a more correct behavior.
-
-
-core/expression
----------------
-
-* BUG: prior to Py3.4 ``None``, ``False`` and ``True`` are redefinable bindings.
-  We need to keep it in mind in ``wrap_in_ast()`` and probably create a new binding instead of just returning an ``ast.Name``.
 
 
 components/evaluate
