@@ -122,6 +122,64 @@ def test_comparison_op_support():
     check_peval_expression_bool("'a' not in 'abcd'", {}, False)
 
 
+def test_and():
+    check_peval_expression_bool('a and b', dict(a=True, b=True), True)
+    check_peval_expression_bool('a and b', dict(a=False), False)
+    check_peval_expression('a and b', dict(a=True), 'b')
+    check_peval_expression('a and b and c and d', dict(a=True, c=True), 'b and d')
+
+
+def test_and_short_circuit():
+
+    global_state = dict(cnt=0)
+
+    @pure_function
+    def inc():
+        global_state['cnt'] += 1
+        return True
+
+    check_peval_expression_bool('a and inc()', dict(a=False, inc=inc), False)
+    assert global_state['cnt'] == 0
+
+    check_peval_expression_bool('a and inc()', dict(a=True, inc=inc), True)
+    assert global_state['cnt'] == 1
+
+
+def test_or():
+    check_peval_expression_bool('a or b', dict(a=False, b=False), False)
+    check_peval_expression('a or b', dict(a=False), 'b')
+    check_peval_expression_bool('a or b', dict(a=True), True)
+    check_peval_expression('a or b or c or d', dict(a=False, c=False), 'b or d')
+
+
+def test_or_short_circuit():
+
+    global_state = dict(cnt=0)
+
+    @pure_function
+    def inc():
+        global_state['cnt'] += 1
+        return True
+
+    check_peval_expression_bool('a or inc()', dict(a=True, inc=inc), True)
+    assert global_state['cnt'] == 0
+
+    check_peval_expression_bool('a or inc()', dict(a=False, inc=inc), True)
+    assert global_state['cnt'] == 1
+
+
+def test_compare():
+    check_peval_expression_bool('0 == 0', {}, True)
+    check_peval_expression_bool('0 == 1', {}, False)
+    check_peval_expression('a == b', dict(a=1), '1 == b')
+    check_peval_expression('a == b', dict(b=1), 'a == 1')
+    check_peval_expression_bool('a == b', dict(a=1, b=1), True)
+    check_peval_expression_bool('a == b', dict(a=2, b=1), False)
+    check_peval_expression('a == b == c == d', dict(a=2, c=2), '2 == b == 2 == d')
+    check_peval_expression_bool('a < b >= c', dict(a=0, b=1, c=1), True)
+    check_peval_expression_bool('a <= b > c', dict(a=0, b=1, c=1), False)
+
+
 def test_ifexp():
     check_peval_expression('x if (not a) else y', dict(a=False), 'x')
     check_peval_expression('x if a else y', dict(a=False), 'y')
@@ -221,70 +279,6 @@ def test_exception():
     def fn():
         return 1 / 0
     check_peval_expression('fn()', dict(fn=fn), 'fn()')
-
-
-def test_and():
-    check_peval_expression_bool('a and b', dict(a=False), False)
-    check_peval_expression('a and b', dict(a=True), 'b')
-    check_peval_expression_bool('a and b()', dict(a=True, b=pure_function(lambda: True)), True)
-    check_peval_expression('a and b and c and d', dict(a=True, c=True), 'b and d')
-
-
-def test_and_short_circuit():
-
-    global_state = dict(cnt=0)
-
-    @pure_function
-    def inc():
-        global_state['cnt'] += 1
-        return True
-
-    check_peval_expression_bool('a and inc()', dict(a=False, inc=inc), False)
-    assert global_state['cnt'] == 0
-
-    check_peval_expression_bool('a and inc()', dict(a=True, inc=inc), True)
-    assert global_state['cnt'] == 1
-
-
-def test_or():
-    check_peval_expression('a or b', dict(a=False), 'b')
-    check_peval_expression_bool('a or b', dict(a=True), True)
-    check_peval_expression_bool('a or b', dict(a=False, b=False), False)
-    check_peval_expression_bool('a or b()', dict(a=False, b=pure_function(lambda: True)), True)
-    check_peval_expression('a or b or c or d', dict(a=False, c=False), 'b or d')
-
-
-def test_or_short_circuit():
-
-    global_state = dict(cnt=0)
-
-    @pure_function
-    def inc():
-        global_state['cnt'] += 1
-        return True
-
-    check_peval_expression_bool('a or inc()', dict(a=True, inc=inc), True)
-    assert global_state['cnt'] == 0
-
-    check_peval_expression_bool('a or inc()', dict(a=False, inc=inc), True)
-    assert global_state['cnt'] == 1
-
-
-def test_eq():
-    check_peval_expression_bool('0 == 0', {}, True)
-    check_peval_expression_bool('0 == 1', {}, False)
-    check_peval_expression('a == b', dict(a=1), '1 == b')
-    check_peval_expression('a == b', dict(b=1), 'a == 1')
-    check_peval_expression_bool('a == b', dict(a=1, b=1), True)
-    check_peval_expression_bool('a == b', dict(a=2, b=1), False)
-    check_peval_expression(
-            'a == b == c == d', dict(a=2, c=2),
-            '2 == b == 2 == d')
-
-
-def test_mix():
-    check_peval_expression_bool('a < b >= c', dict(a=0, b=1, c=1), True)
-    check_peval_expression_bool('a <= b > c', dict(a=0, b=1, c=1), False)
 
 
 def test_arithmetic():
