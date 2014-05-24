@@ -276,30 +276,25 @@ class _peval_expression_node:
     def handle(node, state, ctx):
         return node, state
 
-    @staticmethod
-    def handle_Tuple(node, state, ctx):
-        elts = []
-        for elt in node.elts:
-            elt_value, state = _peval_expression(elt, state, ctx)
-            elts.append(elt_value)
+    #@staticmethod
+    #def handle_Name(node, state, ctx):
+    #    raise NotImplementedError
 
-        if all(is_known_value(elt) for elt in elts):
-            return KnownValue(tuple(elts)), state
-        else:
-            elts, state = map_wrap(elts, state)
-            return ast.Tuple(elts=elts, ctx=ast.Load()), state
+    #@staticmethod
+    #def handle_Num(node, state, ctx):
+    #    raise NotImplementedError
 
-    @staticmethod
-    def handle_Call(node, state, ctx):
-        return peval_call(state, ctx, node.func, args=node.args)
-
-    @staticmethod
-    def handle_BinOp(node, state, ctx):
-        return peval_binop(state, ctx, node.op, node.left, node.right)
+    #@staticmethod
+    #def handle_Str(node, state, ctx):
+    #    raise NotImplementedError
 
     @staticmethod
     def handle_BoolOp(node, state, ctx):
         return peval_boolop(state, ctx, node.op, node.values)
+
+    @staticmethod
+    def handle_BinOp(node, state, ctx):
+        return peval_binop(state, ctx, node.op, node.left, node.right)
 
     @staticmethod
     def handle_UnaryOp(node, state, ctx):
@@ -311,6 +306,9 @@ class _peval_expression_node:
         return result, state
 
     @staticmethod
+    def handle_Lambda(node, state, ctx):
+        raise NotImplementedError
+
     @staticmethod
     def handle_IfExp(node, state, ctx):
         test_value, state = _peval_expression(node.test, state, ctx)
@@ -326,8 +324,70 @@ class _peval_expression_node:
             return replace_fields(
                 node, test=test_value, body=new_body_node, orelse=new_orelse_node), state
 
+    @staticmethod
+    def handle_Dict(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_Set(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_ListComp(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_SetComp(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_DictComp(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_GeneratorExp(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
+    def handle_Yield(node, state, ctx):
+        raise NotImplementedError
+
+    @staticmethod
     def handle_Compare(node, state, ctx):
         return peval_compare(state, ctx, node)
+
+    @staticmethod
+    def handle_Call(node, state, ctx):
+        return peval_call(state, ctx, node.func, args=node.args)
+
+    @staticmethod
+    def handle_Repr(node, state, ctx):
+        raise NotImplementedError
+
+    #@staticmethod
+    #def handle_Attribute(node, state, ctx):
+    #    raise NotImplementedError
+
+    @staticmethod
+    def handle_Subscript(node, state, ctx):
+        raise NotImplementedError
+
+    #@staticmethod
+    #def handle_List(node, state, ctx):
+    #    raise NotImplementedError
+
+    @staticmethod
+    def handle_Tuple(node, state, ctx):
+        elts = []
+        for elt in node.elts:
+            elt_value, state = _peval_expression(elt, state, ctx)
+            elts.append(elt_value)
+
+        if all(is_known_value(elt) for elt in elts):
+            return KnownValue(tuple(elts)), state
+        else:
+            elts, state = map_wrap(elts, state)
+            return ast.Tuple(elts=elts, ctx=ast.Load()), state
 
 
 def peval_expression(node, gen_sym, bindings, py2_division=False):
