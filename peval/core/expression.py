@@ -2,7 +2,7 @@ import sys
 import ast
 import operator
 
-from peval.utils import ast_equal
+from peval.utils import ast_equal, replace_fields
 from peval.core.value import KnownValue, is_known_value, kvalue_to_node, node_to_maybe_kvalue
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
@@ -311,6 +311,21 @@ class _peval_expression_node:
         return result, state
 
     @staticmethod
+    @staticmethod
+    def handle_IfExp(node, state, ctx):
+        test_value, state = _peval_expression(node.test, state, ctx)
+        if is_known_value(test_value):
+            taken_node = node.body if test_value.value else node.orelse
+            return _peval_expression(taken_node, state, ctx)
+        else:
+            new_body, state = _peval_expression(node.body, state, ctx)
+            new_orelse, state = _peval_expression(node.orelse, state, ctx)
+
+            new_body_node, state = maybe_kvalue_to_node(new_body, state)
+            new_orelse_node, state = maybe_kvalue_to_node(new_orelse, state)
+            return replace_fields(
+                node, test=test_value, body=new_body_node, orelse=new_orelse_node), state
+
     def handle_Compare(node, state, ctx):
         return peval_compare(state, ctx, node)
 

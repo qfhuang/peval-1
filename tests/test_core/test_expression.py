@@ -122,6 +122,31 @@ def test_comparison_op_support():
     check_peval_expression_bool("'a' not in 'abcd'", {}, False)
 
 
+def test_ifexp():
+    check_peval_expression('x if (not a) else y', dict(a=False), 'x')
+    check_peval_expression('x if a else y', dict(a=False), 'y')
+    check_peval_expression('(x + y) if a else (y + 4)', dict(x=1, y=2), '3 if a else 6')
+
+
+def test_ifexp_short_circuit():
+
+    global_state = dict(cnt=0)
+
+    @pure_function
+    def inc():
+        global_state['cnt'] += 1
+        return True
+
+    check_peval_expression('x if a else inc()', dict(a=True, inc=inc), 'x')
+    assert global_state['cnt'] == 0
+
+    check_peval_expression('inc() if a else x', dict(a=False, inc=inc), 'x')
+    assert global_state['cnt'] == 0
+
+    check_peval_expression_bool('inc() if a else x', dict(a=True, inc=inc), True)
+    assert global_state['cnt'] == 1
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 
