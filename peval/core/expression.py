@@ -173,7 +173,6 @@ def peval_boolop(state, ctx, op, values):
         new_value, state = _peval_expression(value, state, ctx)
 
         # Short circuit
-        # FIXME: implicit call of bool() on a value --- can be mutating
         if is_known_value(new_value):
             if ((type(op) == ast.And and not new_value.value)
                     or (type(op) == ast.Or and new_value.value)):

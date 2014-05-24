@@ -4,6 +4,12 @@ General
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
 
 
+core/walker
+-----------
+
+* BUG: the ``body`` field of ``Lambda`` or ``IfExp`` holds a single node, not a list --- need to take it into account when checking for returned types (but still replace it with ``Pass`` when a handler returns ``None``).
+
+
 core/mangler
 ------------
 
@@ -23,6 +29,7 @@ core/expression
 ---------------
 
 * FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
+* BUG: evaluating ``bool()`` in handling ``IfExp`` or ``BoolOp`` is potentially (albeit unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
 
 
 mutation detection (in expressions)
@@ -40,11 +47,17 @@ components/fold
 * BUG: take into account ``division`` feature when evaluating expressions.
 
 
+components/prune_assignments
+----------------------------
+
+* BUG: need to keep the variables that are used as closures in nested functions.
+
+
 components/prune_cfg
 --------------------
 
 * FEATURE: we can detect unconditional jumps in ``for`` loops as well, but in order to remove the loop, we need the loop unrolling functionality.
-* BUG: evaluating ``bool(node.test)`` is potentially (albeint unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
+* BUG: evaluating ``bool(node.test)`` is potentially (albeit unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
 
 
 components/inline
