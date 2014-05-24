@@ -4,32 +4,40 @@ General
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
 
 
+core/mangler
+------------
+
+* BUG: when encountering a nested function definition, run it through ``Function`` and check which closure variables it uses (inlcuding the function name itself).
+  Then mangle only them, leaving the rest intact.
+
+
 core/symbol_finder
 ------------------
 
 * ?BUG: ``find_symbol_usages()`` must include other ways of using a symbol (if there are any).
-* BUG: ``find_symbol_creations()`` must include nested ``FunctionDef`` in the list (since they introduce new symbols, just as stores).
-  But in ``Optimizer._inlined_fn()`` the whole outer function definition is passed to the mangler.
-  As a result, it include the outer function name in the to-mangle list and mangles all its recursive calls, preventing the inliner from recognizing and inlining them.
 * BUG: ``find_symbol_creations()`` must include symbols created by ``except Exception as e`` in the list.
   In Python3 ``e`` is just a plain string, so it is not caught by the current algorithm looking for ``ast.Store`` constructors.
+
+
+core/expression
+---------------
+
+* FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
+
+
+mutation detection (in expressions)
+-----------------------------------
+
+* BUG: if an expression is passed as an argument to a function (e.g. ``f(c * 2)``), one of the arguments of this expression can still be passed through and then mutated by ``f()``.
+  This case must be handled somehow.
+  Similarly, a method call can mutate a variable passed to the object earlier, for example ``Foo(x).transform()``, where ``x`` is a list.
+  But this only applies to "bad" objects, because not taking a copy of a mutable argument and then mutate it silently is really error-prone.
 
 
 components/fold
 ---------------
 
 * BUG: take into account ``division`` feature when evaluating expressions.
-* BUG: if an expression is passed as an argument to a function (e.g. ``f(c * 2)``), one of the arguments of this expression can still be passed through and then mutated by ``f()``.
-  This case must be handled somehow.
-  Similarly, a method call can mutate a variable passed to the object earlier, for example ``Foo(x).transform()``, where ``x`` is a list.
-  But this only applies to "bad" objects, because not taking a copy of a mutable argument and then mutate it silently is really error-prone.
-* ?BUG: do we need to check for builtin redefinitions?
-* ?BUG: ``_mark_mutated_node()`` needs to somehow propagate that information up the data flow graph.
-* FEATURE: in ``handle_BinOp()``, we can apply binary operations to all objects that support them, not only to NUMBER_TYPES.
-* ?FEATURE: base optimizations on the data flow graph, not on AST --- it is a higher level abstraction and has less details insignificant for the optimizer.
-* FEATURE: add partial application for varargs and kwargs (see ``assert`` in ``_fn_result_node_if_safe()``).
-* FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
-* ?FEATURE: in ``handle_Compare()``, we may be able to evaluate the result if only some of the arguments are known.
 
 
 components/prune_cfg
@@ -43,9 +51,8 @@ components/inline
 -----------------
 
 * BUG: when inlining a function, we must mangle the globals too, in case it uses a different set from what the parent function uses.
-* FEATURE: add support for inlining functions with varargs/kwargs (see ``assert`` in ``Optimizer._inlined_fn()``).
-* FEATURE: if an argument is "simple" - literal or name, and is never assigned in the body of the inlined function, then do not make an assignment, just use it as is.
-* FEATURE: need to check how argument mutations inside the inlined function are handled.
+* FEATURE: add support for inlining functions with varargs/kwargs.
+  Probably just run the function through ``partial_apply`` before inlining?
 * BUG: a function is inlined by replacing it with a ``while True`` loop and using variable assignment and ``break`` instead of ``return``.
   But if the ``return`` is inside another loop, this will lead to unexpected behavior.
 
