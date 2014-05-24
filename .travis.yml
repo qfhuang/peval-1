@@ -5,7 +5,8 @@ python:
   - "3.2"
   - "3.3"
   - "3.4"
-  - "pypy"
+# - "pypy" is temporarily removed until PyPy2.3 is added to the PPA and is available on TravisCI
+# command to install dependencies
 install:
   - pip install coveralls
   - pip install pytest-cov
