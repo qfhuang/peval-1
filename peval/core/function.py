@@ -1,17 +1,32 @@
+# Need these to detect them in function objects
+import __future__
+
 import sys
 import ast
 import copy
 import inspect
+from functools import reduce
 from types import FunctionType
 
 import funcsigs
 import astunparse
 
 from peval.utils import unshift, get_fn_arg_id
+from peval.core.immutable import immutableadict
 from peval.core.symbol_finder import find_symbol_usages
 
 
-def eval_function_def(function_def, globals_=None):
+FUTURE_NAMES = (
+    'nested_scopes', 'generators', 'division', 'absolute_import',
+    'with_statement', 'print_function', 'unicode_literals')
+
+FUTURE_FEATURES = dict((name, getattr(__future__, name)) for name in FUTURE_NAMES)
+
+FUTURE_FLAGS = reduce(
+    lambda x, y: x | y, [feature.compiler_flag for feature in FUTURE_FEATURES.values()], 0)
+
+
+def eval_function_def(function_def, globals_=None, flags=None):
     """
     Evaluates an AST of a function definition with an optional dictionary of globals.
     Returns a callable function (a ``types.FunctionType`` object).
@@ -23,14 +38,19 @@ def eval_function_def(function_def, globals_=None):
     module = ast.Module(body=[copy.deepcopy(function_def)])
 
     ast.fix_missing_locations(module)
-    code_object = compile(module, '<nofile>', 'exec')
+
+    if flags is not None:
+        kwds = dict(dont_inherit=True, flags=flags)
+    else:
+        kwds = {}
+    code_object = compile(module, '<nofile>', 'exec', **kwds)
 
     locals_ = {}
     eval(code_object, globals_, locals_)
     return locals_[function_def.name]
 
 
-def eval_function_def_as_closure(function_def, closure_names, globals_=None):
+def eval_function_def_as_closure(function_def, closure_names, globals_=None, flags=None):
     """
     Evaluates an AST of a function definition inside a closure with the variables
     from the list of ``closure_names`` set to ``None``,
@@ -87,7 +107,7 @@ def eval_function_def_as_closure(function_def, closure_names, globals_=None):
             [function_def] +
             [ast.Return(value=ast.Name(id=function_def.name, ctx=ast.Load()))]))
 
-    wrapper = eval_function_def(wrapper_def, globals_=globals_)
+    wrapper = eval_function_def(wrapper_def, globals_=globals_, flags=flags)
     return wrapper()
 
 
@@ -194,12 +214,27 @@ class Function(object):
     and simplifying operations with associated global and closure variables.
     """
 
-    def __init__(self, tree, signature, globals_, closure_names, closure_cells):
+    def __init__(self, tree, signature, globals_, closure_names, closure_cells, compiler_flags):
         self.tree = tree
         self.globals = globals_
         self.closure_names = closure_names if closure_names is not None else tuple()
         self.closure_cells = closure_cells if closure_cells is not None else tuple()
         self.signature = signature
+
+        # Extract enabled future features from compiler flags
+
+        self._compiler_flags = compiler_flags
+        future_features = {}
+        for feature_name, feature in FUTURE_FEATURES.items():
+            enabled_by_flag = (compiler_flags & feature.compiler_flag != 0)
+
+            enabled_from = feature.getMandatoryRelease()
+            enabled_by_default = (enabled_from is not None and sys.version_info >= enabled_from)
+
+            future_features[feature_name] = enabled_by_flag or enabled_by_default
+
+        self.future_features = immutableadict(future_features)
+
 
     def get_external_variables(self):
         """
@@ -242,7 +277,16 @@ class Function(object):
         globals_[function.__name__] = function
         closure_names, closure_cells = get_closure(function)
 
-        return cls(tree, signature, globals_, closure_names, closure_cells)
+        if sys.version_info >= (3,):
+            compiler_flags = function.__code__.co_flags
+        else:
+            compiler_flags = function.func_code.co_flags
+
+        # We only need the flags corresponding to future features.
+        # Also, these are the only ones supported by compile().
+        compiler_flags = compiler_flags & FUTURE_FLAGS
+
+        return cls(tree, signature, globals_, closure_names, closure_cells, compiler_flags)
 
     def bind_partial(self, *args, **kwds):
         """
@@ -271,7 +315,8 @@ class Function(object):
             if param.name not in bargs.arguments])
 
         return Function(
-            new_tree, new_signature, new_globals, self.closure_names, self.closure_cells)
+            new_tree, new_signature, new_globals, self.closure_names, self.closure_cells,
+            self._compiler_flags)
 
     def eval(self):
         """
@@ -279,7 +324,7 @@ class Function(object):
         """
         if len(self.closure_names) > 0:
             func_fake_closure = eval_function_def_as_closure(
-                self.tree, self.closure_names, globals_=self.globals)
+                self.tree, self.closure_names, globals_=self.globals, flags=self._compiler_flags)
 
             func = FunctionType(
                 func_fake_closure.__code__,
@@ -292,7 +337,7 @@ class Function(object):
                 if hasattr(func_fake_closure, attr):
                     setattr(func, attr, getattr(func_fake_closure, attr))
         else:
-            func = eval_function_def(self.tree, globals_=self.globals)
+            func = eval_function_def(self.tree, globals_=self.globals, flags=self._compiler_flags)
 
         # A regular function contains a file name and a line number
         # pointing to the location of its source.
@@ -319,7 +364,7 @@ class Function(object):
 
         if len(self.closure_cells) > 0:
             func_fake_closure = eval_function_def_as_closure(
-                tree, self.closure_names, globals_=globals_)
+                tree, self.closure_names, globals_=globals_, flags=self._compiler_flags)
 
             new_closure_names, _ = get_closure(func_fake_closure)
             closure_dict = dict(zip(self.closure_names, self.closure_cells))
@@ -328,4 +373,6 @@ class Function(object):
             new_closure_names = self.closure_names
             new_closure_cells = self.closure_cells
 
-        return Function(tree, self.signature, globals_, new_closure_names, new_closure_cells)
+        return Function(
+            tree, self.signature, globals_, new_closure_names, new_closure_cells,
+            self._compiler_flags)

@@ -18,14 +18,14 @@ core/symbol_finder
 core/function
 -------------
 
-* BUG: preserve __future__ imports when re-evaluating functions.
 * BUG: when binding parameters, do not add them to globals, but instead put the assignments at the start of the function.
   This will result in a more correct behavior.
 
 
-components/evaluate
--------------------
+components/fold
+---------------
 
+* BUG: take into account ``division`` feature when evaluating expressions.
 * BUG: if an expression is passed as an argument to a function (e.g. ``f(c * 2)``), one of the arguments of this expression can still be passed through and then mutated by ``f()``.
   This case must be handled somehow.
   Similarly, a method call can mutate a variable passed to the object earlier, for example ``Foo(x).transform()``, where ``x`` is a list.

@@ -1,7 +1,40 @@
 import ast
 import copy
+import sys
+
+import astunparse
 
 from peval.core.function import Function
+from peval.utils import unshift
+
+
+def function_from_source(source, globals_=None):
+    """
+    A helper function to construct a Function object from a source
+    with custom __future__ imports.
+    """
+
+    module = ast.parse(unshift(source))
+    ast.fix_missing_locations(module)
+
+    for stmt in module.body:
+        if type(stmt) == ast.FunctionDef:
+            # copy to protect from PyPy bug #1728
+            # (compile() will mutate it and make unparse() fail)
+            tree = copy.deepcopy(stmt)
+            name = tree.name
+            break
+    else:
+        raise ValueError("No function definitions found in the provided source")
+
+    code_object = compile(module, '<nofile>', 'exec', dont_inherit=True)
+    locals_ = {}
+    eval(code_object, globals_, locals_)
+
+    function_obj = locals_[name]
+    function_obj._peval_source = astunparse.unparse(tree)
+
+    return Function.from_object(function_obj)
 
 
 global_var = 1
@@ -212,3 +245,70 @@ def test_reapply_decorators():
     func = Function.from_object(tagged).eval()
 
     assert '_tag' in vars(func) and vars(func)['_tag']
+
+
+def test_detect_future_features():
+
+    # Test that the presence of a future feature is detected
+
+    src = """
+        from __future__ import division
+        def f():
+            return 1 / 2
+        """
+
+    func = function_from_source(src)
+    assert func.future_features.division
+
+
+    # Test that the absence of a future feature is detected
+    # (Does not test much in Py3, since all the future features are enabled by default).
+
+    src = """
+        def f():
+            return 1 / 2
+        """
+
+    func = function_from_source(src)
+    if sys.version_info >= (3,):
+        assert func.future_features.division
+    else:
+        assert not func.future_features.division
+
+
+def test_preserve_future_features():
+
+    # Test that the presence of a future feature is preserved after re-evaluation
+
+    src = """
+        from __future__ import division
+        def f():
+            return 1 / 2
+        """
+
+    func = function_from_source(src)
+    new_func_obj = func.eval()
+    new_func = Function.from_object(new_func_obj)
+
+    assert new_func.future_features.division
+    assert new_func_obj() == 0.5
+
+
+    # Test that the absence of a future feature is preserved after re-evaluation
+    # (Does not test much in Py3, since all the future features are enabled by default).
+
+    src = """
+        def f():
+            return 1 / 2
+        """
+
+    func = function_from_source(src)
+    new_func_obj = func.eval()
+    new_func = Function.from_object(new_func_obj)
+
+    if sys.version_info >= (3,):
+        assert new_func.future_features.division
+        assert new_func_obj() == 0.5
+    else:
+        assert not new_func.future_features.division
+        assert new_func_obj() == 0
