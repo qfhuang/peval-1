@@ -3,6 +3,7 @@ import copy
 import sys
 
 import astunparse
+import funcsigs
 
 from peval.core.function import Function
 from peval.utils import unshift
@@ -73,58 +74,63 @@ def dummy_func(a, b, c=4, d=5):
 
 
 def dummy_func_arg_groups(a, b, *args, **kwds):
-    return a, b, args, kwargs
+    return a, b, args, kwds
 
 
 def test_bind_partial_args():
 
     func = Function.from_object(dummy_func)
 
-    new_func = func.bind_partial(1)
-    assert new_func.globals['a'] == 1
-    assert 'a' not in new_func.signature.parameters
-    assert 'b' in new_func.signature.parameters
-    assert 'c' in new_func.signature.parameters
-    assert 'd' in new_func.signature.parameters
+    new_func = func.bind_partial(1).eval()
+    sig = funcsigs.signature(new_func)
+
+    assert new_func(2, 3, 4) == (1, 2, 3, 4)
+    assert 'a' not in sig.parameters
+    assert 'b' in sig.parameters
+    assert 'c' in sig.parameters
+    assert 'd' in sig.parameters
 
 
 def test_bind_partial_kwds():
 
     func = Function.from_object(dummy_func)
 
-    new_func = func.bind_partial(1, d=10)
-    assert new_func.globals['a'] == 1
-    assert new_func.globals['d'] == 10
-    assert 'a' not in new_func.signature.parameters
-    assert 'b' in new_func.signature.parameters
-    assert 'c' in new_func.signature.parameters
-    assert 'd' not in new_func.signature.parameters
+    new_func = func.bind_partial(1, d=10).eval()
+    sig = funcsigs.signature(new_func)
+
+    assert new_func(2, 3) == (1, 2, 3, 10)
+    assert 'a' not in sig.parameters
+    assert 'b' in sig.parameters
+    assert 'c' in sig.parameters
+    assert 'd' not in sig.parameters
 
 
 def test_bind_partial_varargs():
 
     func = Function.from_object(dummy_func_arg_groups)
 
-    new_func = func.bind_partial(1, 2, 3)
-    assert new_func.globals['a'] == 1
-    assert new_func.globals['b'] == 2
-    assert new_func.globals['args'] == (3,)
-    assert 'a' not in new_func.signature.parameters
-    assert 'b' not in new_func.signature.parameters
-    assert 'args' not in new_func.signature.parameters
+    new_func = func.bind_partial(1, 2, 3).eval()
+    sig = funcsigs.signature(new_func)
+
+    assert new_func(d=10) == (1, 2, (3,), {'d': 10})
+    assert 'a' not in sig.parameters
+    assert 'b' not in sig.parameters
+    assert 'args' not in sig.parameters
+    assert 'kwds' in sig.parameters
 
 
 def test_bind_partial_varkwds():
 
     func = Function.from_object(dummy_func_arg_groups)
 
-    new_func = func.bind_partial(1, 2, 3)
-    assert new_func.globals['a'] == 1
-    assert new_func.globals['b'] == 2
-    assert new_func.globals['args'] == (3,)
-    assert 'a' not in new_func.signature.parameters
-    assert 'b' not in new_func.signature.parameters
-    assert 'args' not in new_func.signature.parameters
+    new_func = func.bind_partial(1, 2, d=10).eval()
+    sig = funcsigs.signature(new_func)
+
+    assert new_func(3, 4) == (1, 2, (3, 4), {'d': 10})
+    assert 'a' not in sig.parameters
+    assert 'b' not in sig.parameters
+    assert 'args' in sig.parameters
+    assert 'kwds' not in sig.parameters
 
 
 def test_globals_contents():

@@ -11,8 +11,10 @@ from types import FunctionType
 import funcsigs
 import astunparse
 
-from peval.utils import unshift, get_fn_arg_id
+from peval.utils import unshift, get_fn_arg_id, replace_fields
 from peval.core.immutable import immutableadict
+from peval.core.gensym import GenSym
+from peval.core.value import value_to_node
 from peval.core.symbol_finder import find_symbol_usages
 
 
@@ -214,12 +216,11 @@ class Function(object):
     and simplifying operations with associated global and closure variables.
     """
 
-    def __init__(self, tree, signature, globals_, closure_names, closure_cells, compiler_flags):
+    def __init__(self, tree, globals_, closure_names, closure_cells, compiler_flags):
         self.tree = tree
         self.globals = globals_
         self.closure_names = closure_names if closure_names is not None else tuple()
         self.closure_cells = closure_cells if closure_cells is not None else tuple()
-        self.signature = signature
 
         # Extract enabled future features from compiler flags
 
@@ -272,7 +273,6 @@ class Function(object):
 
         tree = ast.parse(src).body[0]
 
-        signature = funcsigs.signature(function)
         globals_ = function.__globals__
         globals_[function.__name__] = function
         closure_names, closure_cells = get_closure(function)
@@ -286,7 +286,7 @@ class Function(object):
         # Also, these are the only ones supported by compile().
         compiler_flags = compiler_flags & FUTURE_FLAGS
 
-        return cls(tree, signature, globals_, closure_names, closure_cells, compiler_flags)
+        return cls(tree, globals_, closure_names, closure_cells, compiler_flags)
 
     def bind_partial(self, *args, **kwds):
         """
@@ -294,7 +294,10 @@ class Function(object):
         and returns a new ``Function`` object with an updated signature.
         """
 
-        bargs = self.signature.bind_partial(*args, **kwds)
+        # We only need the signature, so clean the function body before eval'ing.
+        empty_func = self.replace(tree=replace_fields(self.tree, body=[ast.Pass()]))
+        signature = funcsigs.signature(empty_func.eval())
+        bargs = signature.bind_partial(*args, **kwds)
 
         # Remove the bound arguments from the function AST
         bound_argnames = set(bargs.arguments.keys())
@@ -307,15 +310,24 @@ class Function(object):
         decorator_symbols = find_symbol_usages(self.tree.decorator_list)
         assert decorator_symbols.isdisjoint(bound_argnames)
 
-        new_globals = dict(self.globals)
-        new_globals.update(bargs.arguments)
+        # Add assignments for bound parameters
+        assignments = []
+        gen_sym = GenSym.for_tree(new_tree)
+        new_bindings = {}
+        for name, value in bargs.arguments.items():
+            node, gen_sym, binding = value_to_node(value, gen_sym)
+            new_bindings.update(binding)
+            assignments.append(ast.Assign(
+                targets=[ast.Name(id=name, ctx=ast.Store())],
+                value=node))
 
-        new_signature = self.signature.replace(parameters=[
-            param for param in self.signature.parameters.values()
-            if param.name not in bargs.arguments])
+        new_globals = dict(self.globals)
+        new_globals.update(new_bindings)
+
+        new_tree = replace_fields(new_tree, body=assignments + new_tree.body)
 
         return Function(
-            new_tree, new_signature, new_globals, self.closure_names, self.closure_cells,
+            new_tree, new_globals, self.closure_names, self.closure_cells,
             self._compiler_flags)
 
     def eval(self):
@@ -374,5 +386,5 @@ class Function(object):
             new_closure_cells = self.closure_cells
 
         return Function(
-            tree, self.signature, globals_, new_closure_names, new_closure_cells,
+            tree, globals_, new_closure_names, new_closure_cells,
             self._compiler_flags)

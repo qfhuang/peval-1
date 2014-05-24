@@ -15,13 +15,6 @@ core/symbol_finder
   In Python3 ``e`` is just a plain string, so it is not caught by the current algorithm looking for ``ast.Store`` constructors.
 
 
-core/function
--------------
-
-* BUG: when binding parameters, do not add them to globals, but instead put the assignments at the start of the function.
-  This will result in a more correct behavior.
-
-
 components/fold
 ---------------
 
