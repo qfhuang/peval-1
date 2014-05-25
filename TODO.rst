@@ -30,6 +30,7 @@ core/expression
 
 * FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
 * BUG: evaluating ``bool()`` in handling ``IfExp`` or ``BoolOp`` is potentially (albeit unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
+  In general we need to merge all the safety checks when calling functions/methods or getting attributes into one place (see ``try_call_method()`` etc).
 
 
 mutation detection (in expressions)

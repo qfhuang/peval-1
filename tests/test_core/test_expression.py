@@ -276,6 +276,17 @@ def test_repr():
     check_peval_expression('`a + b`', dict(a=1), '`1 + b`')
 
 
+def test_attribute():
+
+    class Dummy:
+        a = 1
+
+    d = Dummy()
+
+    check_peval_expression('x.a', dict(x=d), '1', fully_evaluated=True, expected_value=1)
+    check_peval_expression('(x + y).a', dict(x=1), '(1 + y).a')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

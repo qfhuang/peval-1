@@ -115,8 +115,12 @@ def fmap_is_known_value(container):
         return is_known_value(container)
 
 
-def try_call_method(obj, name):
-    return True, getattr(obj, name)()
+def try_call_method(obj, name, *args, **kwds):
+    return True, getattr(obj, name)(*args, **kwds)
+
+
+def try_get_attribute(obj, name, *args, **kwds):
+    return True, getattr(obj, name)
 
 
 def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
@@ -433,18 +437,27 @@ class _peval_expression:
     def handle_Repr(node, state, ctx):
         result, state = _peval_expression(node.value, state, ctx)
         if is_known_value(result):
-            called, value = try_call_method(result.value, '__repr__')
-            if called:
+            success, value = try_call_method(result.value, '__repr__')
+            if success:
                 return KnownValue(value=value), state
             else:
                 new_value, state = fmap_kvalue_to_node(result, state)
                 return repalce_fields(node, value=new_value), state
         else:
-            return ast.Repr(value=result), state
+            return replace_fields(node, value=result), state
 
-    #@staticmethod
-    #def handle_Attribute(node, state, ctx):
-    #    raise NotImplementedError
+    @staticmethod
+    def handle_Attribute(node, state, ctx):
+        result, state = _peval_expression(node.value, state, ctx)
+        if is_known_value(result):
+            success, attr = try_get_attribute(result.value, node.attr)
+            if success:
+                return KnownValue(value=attr), state
+            else:
+                new_value, state = fmap_kvalue_to_node(result, state)
+                return repalce_fields(node, value=new_value), state
+        else:
+            return replace_fields(node, value=result), state
 
     @staticmethod
     def handle_Subscript(node, state, ctx):
