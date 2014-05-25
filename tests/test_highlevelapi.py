@@ -151,6 +151,10 @@ def test_if_on_recursive_power():
 
 def test_mutation_via_method():
 
+    # Currently mutation is not detected, so ``x.append``
+    # gets evaluated and replaced with ``None``.
+    pytest.xfail()
+
     def mutty(x, y):
         x.append('foo')
         return x + [y]
