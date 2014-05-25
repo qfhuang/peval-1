@@ -3,9 +3,7 @@ import sys
 
 import pytest
 
-from peval.core.value import (
-    KnownValue, is_known_value, kvalue_to_node, node_to_maybe_kvalue,
-    value_to_node, try_node_to_value)
+from peval.core.value import KnownValue, is_known_value, kvalue_to_node, value_to_node
 from peval.core.gensym import GenSym
 
 from tests.utils import assert_ast_equal
@@ -31,7 +29,7 @@ def check_node_to_maybe_kvalue(node, bindings, expected_result, expected_preferr
         assert_ast_equal(node_or_kvalue, expected_result)
 
 
-def test_kvalue_to_node():
+def test_simple_kvalue_to_node():
     if sys.version_info >= (3, 4):
         check_kvalue_to_node(True, ast.NameConstant(value=True))
         check_kvalue_to_node(False, ast.NameConstant(value=False))
@@ -61,24 +59,6 @@ def test_kvalue_to_node():
         check_kvalue_to_node(s, ast.Bytes(s=s))
 
 
-def test_node_to_maybe_kvalue():
-
-    check_node_to_maybe_kvalue(
-        ast.Name(id='x', ctx=ast.Load()), {}, ast.Name(id='x', ctx=ast.Load()))
-    check_node_to_maybe_kvalue(
-        ast.Name(id='x', ctx=ast.Load()), dict(x=1), 1, expected_preferred_name='x')
-    check_node_to_maybe_kvalue(ast.Num(n=1), {}, 1)
-    check_node_to_maybe_kvalue(ast.Str(s='a'), {}, 'a')
-    check_node_to_maybe_kvalue(ast.Pass(), {}, ast.Pass())
-
-    if sys.version_info >= (3,):
-        s = bytes('abc', encoding='ascii')
-        check_node_to_maybe_kvalue(ast.Bytes(s=s), {}, s)
-
-    if sys.version_info >= (3, 4):
-        check_node_to_maybe_kvalue(ast.NameConstant(value=True), {}, True)
-
-
 def test_value_to_node():
     class Dummy(): pass
     x = Dummy()
@@ -86,17 +66,6 @@ def test_value_to_node():
     node, gen_sym, binding = value_to_node(x, gen_sym)
     assert_ast_equal(node, ast.Name(id='__peval_temp_1', ctx=ast.Load()))
     assert binding == dict(__peval_temp_1=x)
-
-
-def test_try_node_to_value():
-    class Dummy(): pass
-    x = Dummy()
-    evaluated, value = try_node_to_value(ast.Name(id='x', ctx=ast.Load()), dict(x=x))
-    assert evaluated
-    assert value is x
-
-    evaluated, value = try_node_to_value(ast.Name(id='y', ctx=ast.Load()), dict(x=x))
-    assert not evaluated
 
 
 def test_str_repr():

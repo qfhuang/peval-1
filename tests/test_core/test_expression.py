@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from peval.core.expression import peval_expression
+from peval.core.expression import peval_expression, try_peval_expression
 from peval.core.gensym import GenSym
 from peval.decorators import pure_function
 
@@ -61,6 +61,44 @@ def check_peval_expression_bool(source, bindings, expected_value):
             source, bindings, expected_source=expected_binding,
             expected_temp_bindings={expected_binding: expected_value},
             fully_evaluated=True, expected_value=expected_value)
+
+
+def test_simple_cases():
+
+    check_peval_expression('x', {}, 'x')
+    check_peval_expression('1', {}, '1', fully_evaluated=True, expected_value=1)
+    check_peval_expression('"a"', {}, '"a"', fully_evaluated=True, expected_value='a')
+
+    if sys.version_info >= (3,):
+        s = bytes('abc', encoding='ascii')
+        check_peval_expression(
+            'b"abc"', dict(b=s), 'b"abc"', fully_evaluated=True, expected_value=s)
+    else:
+        s = unicode('abc')
+        check_peval_expression(
+            'u"abc"', dict(b=s), 'u"abc"', fully_evaluated=True, expected_value=s)
+
+    if sys.version_info >= (3, 4):
+        check_peval_expression('True', {}, 'True', fully_evaluated=True, expected_value=True)
+
+
+def test_preferred_name():
+    class Dummy(): pass
+    x = Dummy()
+    check_peval_expression('y', dict(y=x), 'y')
+
+
+def test_try_peval_expression():
+    class Dummy(): pass
+    x = Dummy()
+    evaluated, value = try_peval_expression(ast.Name(id='x', ctx=ast.Load()), dict(x=x))
+    assert evaluated
+    assert value is x
+
+    node = ast.Name(id='y', ctx=ast.Load())
+    evaluated, value = try_peval_expression(node, dict(x=x))
+    assert not evaluated
+    assert value is node
 
 
 def test_bin_op_support():

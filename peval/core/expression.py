@@ -3,7 +3,8 @@ import ast
 import operator
 
 from peval.utils import ast_equal, replace_fields
-from peval.core.value import KnownValue, is_known_value, kvalue_to_node, node_to_maybe_kvalue
+from peval.core.gensym import GenSym
+from peval.core.value import KnownValue, is_known_value, kvalue_to_node
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 
@@ -48,17 +49,6 @@ COMPARE_OPS = {
     ast.In: KnownValue(in_),
     ast.NotIn: KnownValue(not_in),
     }
-
-
-class EvaluationResult:
-
-    def __init__(self, fully_evaluated, node, temp_bindings, value=None):
-        self.fully_evaluated = fully_evaluated
-        if fully_evaluated:
-            self.value = value
-        self.temp_bindings = temp_bindings
-        self.node = node
-        self.mutated_bindings = set()
 
 
 def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
@@ -258,35 +248,38 @@ def peval_compare(state, ctx, node):
         return ast.BoolOp(op=ast.And(), values=nodes), state
 
 
-def _peval_expression(kvalue_or_node, state, ctx):
-    if is_known_value(kvalue_or_node):
-        return kvalue_or_node, state
-
-    kvalue_or_node = node_to_maybe_kvalue(kvalue_or_node, ctx.bindings)
-    if is_known_value(kvalue_or_node):
-        return kvalue_or_node, state
-
-    return _peval_expression_node(kvalue_or_node, state, ctx)
-
-
 @Dispatcher
-class _peval_expression_node:
+class _peval_expression:
 
     @staticmethod
     def handle(node, state, ctx):
         return node, state
 
-    #@staticmethod
-    #def handle_Name(node, state, ctx):
-    #    raise NotImplementedError
+    @staticmethod
+    def handle_Name(node, state, ctx):
+        name = node.id
+        if name in ctx.bindings:
+            return KnownValue(ctx.bindings[name], preferred_name=name), state
+        else:
+            return node, state
 
-    #@staticmethod
-    #def handle_Num(node, state, ctx):
-    #    raise NotImplementedError
+    @staticmethod
+    def handle_Num(node, state, ctx):
+        return KnownValue(node.n), state
 
-    #@staticmethod
-    #def handle_Str(node, state, ctx):
-    #    raise NotImplementedError
+    @staticmethod
+    def handle_Str(node, state, ctx):
+        return KnownValue(node.s), state
+
+    @staticmethod
+    def handle_Bytes(node, state, ctx):
+        # For Python >= 3
+        return KnownValue(node.s), state
+
+    @staticmethod
+    def handle_NameConstant(node, state, ctx):
+        # For Python >= 3.4
+        return KnownValue(node.value), state
 
     @staticmethod
     def handle_BoolOp(node, state, ctx):
@@ -390,6 +383,17 @@ class _peval_expression_node:
             return ast.Tuple(elts=elts, ctx=ast.Load()), state
 
 
+class EvaluationResult:
+
+    def __init__(self, fully_evaluated, node, temp_bindings, value=None):
+        self.fully_evaluated = fully_evaluated
+        if fully_evaluated:
+            self.value = value
+        self.temp_bindings = temp_bindings
+        self.node = node
+        self.mutated_bindings = set()
+
+
 def peval_expression(node, gen_sym, bindings, py2_division=False):
 
     # We do not really need the Py2-style division in Py3,
@@ -415,3 +419,14 @@ def peval_expression(node, gen_sym, bindings, py2_division=False):
             temp_bindings=state.temp_bindings)
 
     return eval_result, state.gen_sym
+
+
+def try_peval_expression(node, bindings, py2_division=False):
+
+    gen_sym = GenSym()
+    eval_result, gen_sym = peval_expression(node, gen_sym, bindings, py2_division=py2_division)
+    if eval_result.fully_evaluated:
+        return True, eval_result.value
+    else:
+        return False, node
+

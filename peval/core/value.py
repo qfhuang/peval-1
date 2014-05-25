@@ -52,33 +52,5 @@ def kvalue_to_node(kvalue, gen_sym):
         return ast.Name(id=name, ctx=ast.Load()), gen_sym, {name: value}
 
 
-def node_to_maybe_kvalue(node, bindings):
-
-    if type(node) == ast.Name and type(node.ctx) == ast.Load:
-        name = node.id
-        if name in bindings:
-            return KnownValue(bindings[name], preferred_name=name)
-        else:
-            return node
-    elif type(node) == ast.Num:
-        return KnownValue(node.n)
-    elif type(node) == ast.Str:
-        return KnownValue(node.s)
-    elif sys.version_info >=(3,) and type(node) == ast.Bytes:
-        return KnownValue(node.s)
-    elif sys.version_info >= (3, 4) and type(node) == ast.NameConstant:
-        return KnownValue(node.value)
-    else:
-        return node
-
-
 def value_to_node(value, gen_sym):
     return kvalue_to_node(KnownValue(value), gen_sym)
-
-
-def try_node_to_value(node, bindings):
-    result = node_to_maybe_kvalue(node, bindings)
-    if is_known_value(result):
-        return True, result.value
-    else:
-        return False, None
