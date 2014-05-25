@@ -243,6 +243,20 @@ def test_ifexp_short_circuit():
     assert global_state['cnt'] == 1
 
 
+def test_dict():
+    check_peval_expression('{a: b, c: d}', dict(a=2, d=1), '{2: b, c: 1}')
+    check_peval_expression(
+        '{a: b, c: d}', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        fully_evaluated=True, expected_value={1: 2, 3: 4})
+
+
+def test_list():
+    check_peval_expression('[a, b, c, d]', dict(a=2, d=1), '[2, b, c, 1]')
+    check_peval_expression(
+        '[a, b, c, d]', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        fully_evaluated=True, expected_value=[1, 2, 3, 4])
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

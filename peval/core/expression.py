@@ -31,6 +31,9 @@ BIN_OPS = {
     ast.BitAnd: KnownValue(operator.and_),
     }
 
+# Wrapping ``contains``, because its parameters
+# do not follow the pattern (left operand, right operand).
+
 def in_(x, y):
     return operator.contains(y, x)
 
@@ -49,6 +52,67 @@ COMPARE_OPS = {
     ast.In: KnownValue(in_),
     ast.NotIn: KnownValue(not_in),
     }
+
+
+# Some functions that map other functions over different containers,
+# passing through the given state object.
+# Since it is not Haskell, for performance reasons
+# we have a separate specialization for each function.
+
+
+# For ``kvalue_to_node()`` we do not need to pass through the whole state, only ``gen_sym``.
+# So we have this internal function that does that.
+def _fmap_kvalue_to_node(container, gen_sym):
+    if container is None:
+        return None, gen_sym, {}
+    elif type(container) in (list, tuple, zip):
+        new_container = []
+        result_bindings = {}
+        for elem in container:
+            new_elem, gen_sym, temp_bindings = _fmap_kvalue_to_node(elem, gen_sym)
+            new_container.append(new_elem)
+            result_bindings.update(temp_bindings)
+        container_type = type(container)
+        result_type = list if container_type == zip else container_type
+        return result_type(new_container), gen_sym, result_bindings
+    elif is_known_value(container):
+        return kvalue_to_node(container, gen_sym)
+    else:
+        # Should be an AST node
+        return container, gen_sym, {}
+
+
+def fmap_kvalue_to_node(container, state):
+    new_container, gen_sym, temp_bindings = _fmap_kvalue_to_node(container, state.gen_sym)
+    new_state = state.update(
+        gen_sym=gen_sym,
+        temp_bindings=state.temp_bindings.update(temp_bindings))
+    return new_container, new_state
+
+
+def fmap_peval_expression(container, state, ctx):
+    if container is None:
+        return None, state
+    elif type(container) in (list, tuple, zip):
+        new_container = []
+        for elem in container:
+            new_elem, state = fmap_peval_expression(elem, state, ctx)
+            new_container.append(new_elem)
+        container_type = type(container)
+        result_type = list if container_type == zip else container_type
+        return result_type(new_container), state
+    elif is_known_value(container):
+        return container, state
+    else:
+        # Should be an AST node
+        return _peval_expression(container, state, ctx)
+
+
+def fmap_is_known_value(container):
+    if type(container) in (list, tuple, zip):
+        return all(map(fmap_is_known_value, container))
+    else:
+        return is_known_value(container)
 
 
 def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
@@ -105,7 +169,7 @@ def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs
         kwargs=kwargs_values)
     mapped_containers = {}
     for name, container in containers.items():
-        container, state = map_wrap(container, state)
+        container, state = fmap_kvalue_to_node(container, state)
         mapped_containers[name] = container
     result = ast.Call(**mapped_containers)
 
@@ -114,30 +178,6 @@ def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs
 
 def is_function_evalable(function):
     return True
-
-
-def maybe_kvalue_to_node(kvalue_or_node, state):
-    if is_known_value(kvalue_or_node):
-        node, gen_sym, binding = kvalue_to_node(kvalue_or_node, state.gen_sym)
-        state = state.update(
-            gen_sym=gen_sym,
-            temp_bindings=state.temp_bindings.update(binding))
-        return node, state
-    else:
-        return kvalue_or_node, state
-
-
-def map_wrap(container, state):
-    if container is None:
-        result = None
-    elif isinstance(container, (KnownValue, ast.AST)):
-        result, state = maybe_kvalue_to_node(container, state)
-    elif isinstance(container, list):
-        result = []
-        for elem in container:
-            elem_result, state = maybe_kvalue_to_node(elem, state)
-            result.append(elem_result)
-    return result, state
 
 
 def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
@@ -312,14 +352,37 @@ class _peval_expression:
             new_body, state = _peval_expression(node.body, state, ctx)
             new_orelse, state = _peval_expression(node.orelse, state, ctx)
 
-            new_body_node, state = maybe_kvalue_to_node(new_body, state)
-            new_orelse_node, state = maybe_kvalue_to_node(new_orelse, state)
+            new_body_node, state = fmap_kvalue_to_node(new_body, state)
+            new_orelse_node, state = fmap_kvalue_to_node(new_orelse, state)
             return replace_fields(
                 node, test=test_value, body=new_body_node, orelse=new_orelse_node), state
 
     @staticmethod
     def handle_Dict(node, state, ctx):
-        raise NotImplementedError
+
+        pairs, state = fmap_peval_expression(zip(node.keys, node.values), state, ctx)
+        can_eval = fmap_is_known_value(pairs)
+
+        if can_eval:
+            new_dict = dict((key.value, value.value) for key, value in pairs)
+            return KnownValue(value=new_dict), state
+        else:
+            keys_values, state = fmap_kvalue_to_node(zip(*pairs), state)
+            new_node = replace_fields(node, keys=list(keys_values[0]), values=list(keys_values[1]))
+            return new_node, state
+
+    @staticmethod
+    def handle_List(node, state, ctx):
+
+        elts, state = fmap_peval_expression(node.elts, state, ctx)
+        can_eval = fmap_is_known_value(elts)
+
+        if can_eval:
+            new_list = [elt.value for elt in elts]
+            return KnownValue(value=new_list), state
+        else:
+            new_elts, state = fmap_kvalue_to_node(elts, state)
+            return replace_fields(node, elts=new_elts), state
 
     @staticmethod
     def handle_Set(node, state, ctx):
@@ -365,10 +428,6 @@ class _peval_expression:
     def handle_Subscript(node, state, ctx):
         raise NotImplementedError
 
-    #@staticmethod
-    #def handle_List(node, state, ctx):
-    #    raise NotImplementedError
-
     @staticmethod
     def handle_Tuple(node, state, ctx):
         elts = []
@@ -379,7 +438,7 @@ class _peval_expression:
         if all(is_known_value(elt) for elt in elts):
             return KnownValue(tuple(elts)), state
         else:
-            elts, state = map_wrap(elts, state)
+            elts, state = fmap_kvalue_to_node(elts, state)
             return ast.Tuple(elts=elts, ctx=ast.Load()), state
 
 
@@ -406,7 +465,7 @@ def peval_expression(node, gen_sym, bindings, py2_division=False):
 
     result, state = _peval_expression(node, state, ctx)
     if is_known_value(result):
-        result_node, state = maybe_kvalue_to_node(result, state)
+        result_node, state = fmap_kvalue_to_node(result, state)
         eval_result = EvaluationResult(
             fully_evaluated=True,
             value=result.value,
