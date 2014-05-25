@@ -257,6 +257,16 @@ def test_list():
         fully_evaluated=True, expected_value=[1, 2, 3, 4])
 
 
+def test_set():
+    if sys.version_info < (3,):
+        pytest.skip()
+
+    check_peval_expression('{a, b, c, d}', dict(a=2, d=1), '{2, b, c, 1}')
+    check_peval_expression(
+        '{a, b, c, d}', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        fully_evaluated=True, expected_value=set([1, 2, 3, 4]))
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

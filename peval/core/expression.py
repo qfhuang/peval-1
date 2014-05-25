@@ -386,7 +386,16 @@ class _peval_expression:
 
     @staticmethod
     def handle_Set(node, state, ctx):
-        raise NotImplementedError
+
+        elts, state = fmap_peval_expression(node.elts, state, ctx)
+        can_eval = fmap_is_known_value(elts)
+
+        if can_eval:
+            new_set = set(elt.value for elt in elts)
+            return KnownValue(value=new_set), state
+        else:
+            new_elts, state = fmap_kvalue_to_node(elts, state)
+            return replace_fields(node, elts=new_elts), state
 
     @staticmethod
     def handle_ListComp(node, state, ctx):
