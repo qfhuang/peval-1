@@ -267,6 +267,15 @@ def test_set():
         fully_evaluated=True, expected_value=set([1, 2, 3, 4]))
 
 
+def test_repr():
+    if sys.version_info >= (3,):
+        pytest.skip()
+
+    check_peval_expression(
+        '`a + b`', dict(a=1, b=2), '"3"', fully_evaluated=True, expected_value='3')
+    check_peval_expression('`a + b`', dict(a=1), '`1 + b`')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

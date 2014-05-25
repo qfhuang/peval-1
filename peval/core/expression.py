@@ -115,6 +115,10 @@ def fmap_is_known_value(container):
         return is_known_value(container)
 
 
+def try_call_method(obj, name):
+    return True, getattr(obj, name)()
+
+
 def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
 
     can_eval = True
@@ -427,7 +431,16 @@ class _peval_expression:
 
     @staticmethod
     def handle_Repr(node, state, ctx):
-        raise NotImplementedError
+        result, state = _peval_expression(node.value, state, ctx)
+        if is_known_value(result):
+            called, value = try_call_method(result.value, '__repr__')
+            if called:
+                return KnownValue(value=value), state
+            else:
+                new_value, state = fmap_kvalue_to_node(result, state)
+                return repalce_fields(node, value=new_value), state
+        else:
+            return ast.Repr(value=result), state
 
     #@staticmethod
     #def handle_Attribute(node, state, ctx):
