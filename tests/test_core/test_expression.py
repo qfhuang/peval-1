@@ -247,6 +247,7 @@ def test_dict():
     check_peval_expression('{a: b, c: d}', dict(a=2, d=1), '{2: b, c: 1}')
     check_peval_expression(
         '{a: b, c: d}', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1={1: 2, 3: 4}),
         fully_evaluated=True, expected_value={1: 2, 3: 4})
 
 
@@ -254,6 +255,7 @@ def test_list():
     check_peval_expression('[a, b, c, d]', dict(a=2, d=1), '[2, b, c, 1]')
     check_peval_expression(
         '[a, b, c, d]', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=[1, 2, 3, 4]),
         fully_evaluated=True, expected_value=[1, 2, 3, 4])
 
 
@@ -264,6 +266,7 @@ def test_set():
     check_peval_expression('{a, b, c, d}', dict(a=2, d=1), '{2, b, c, 1}')
     check_peval_expression(
         '{a, b, c, d}', dict(a=1, b=2, c=3, d=4), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=set([1, 2, 3, 4])),
         fully_evaluated=True, expected_value=set([1, 2, 3, 4]))
 
 
@@ -344,9 +347,7 @@ def test_call_with_args():
 
     check_peval_expression('fn(x, y)', dict(fn=fn, x=10), 'fn(10, y)')
     check_peval_expression(
-            'fn(x, y)',
-            dict(fn=fn, x=[10], y=20.0),
-            '__peval_temp_1',
+            'fn(x, y)', dict(fn=fn, x=[10], y=20.0), '__peval_temp_1',
             expected_temp_bindings=dict(__peval_temp_1=[10, 20.0]),
             fully_evaluated=True, expected_value=[10, 20.0])
 
