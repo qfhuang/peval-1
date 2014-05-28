@@ -437,7 +437,21 @@ class _peval_expression:
 
     @staticmethod
     def handle_Yield(node, state, ctx):
-        raise NotImplementedError
+        result, state = _peval_expression(node.value, state, ctx)
+
+        # We cannot evaluate a yield expression,
+        # so just wrap whatever we've got in a node and return.
+        new_value, state = fmap_kvalue_to_node(result, state)
+        return replace_fields(node, value=new_value), state
+
+    @staticmethod
+    def handle_YieldFrom(node, state, ctx):
+        result, state = _peval_expression(node.value, state, ctx)
+
+        # We cannot evaluate a yield expression,
+        # so just wrap whatever we've got in a node and return.
+        new_value, state = fmap_kvalue_to_node(result, state)
+        return replace_fields(node, value=new_value), state
 
     @staticmethod
     def handle_Compare(node, state, ctx):

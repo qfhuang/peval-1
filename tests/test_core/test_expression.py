@@ -373,6 +373,17 @@ def test_function_call():
         fully_evaluated=True, expected_value=((3, 4), {'a': 5}))
 
 
+def test_yield():
+    check_peval_expression('yield a + b', dict(a=1), 'yield 1 + b')
+    check_peval_expression('yield a + b', dict(a=1, b=2), 'yield 3')
+
+
+def test_yield_from():
+    if sys.version_info < (3, 3):
+        pytest.skip()
+    check_peval_expression('yield from iter(a)', dict(a=1), 'yield from iter(1)')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 
