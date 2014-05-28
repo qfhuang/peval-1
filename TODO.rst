@@ -4,6 +4,12 @@ General
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
 
 
+core/value
+----------
+
+* ?FEATURE: extend the class of literals, adding non-trivial immutable objects, e.g. tuples and slices.
+
+
 core/walker
 -----------
 
