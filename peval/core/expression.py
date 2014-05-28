@@ -440,11 +440,9 @@ class _peval_expression:
             success, value = try_call_method(result.value, '__repr__')
             if success:
                 return KnownValue(value=value), state
-            else:
-                new_value, state = fmap_kvalue_to_node(result, state)
-                return repalce_fields(node, value=new_value), state
-        else:
-            return replace_fields(node, value=result), state
+
+        new_value, state = fmap_kvalue_to_node(result, state)
+        return replace_fields(node, value=new_value), state
 
     @staticmethod
     def handle_Attribute(node, state, ctx):
@@ -453,11 +451,9 @@ class _peval_expression:
             success, attr = try_get_attribute(result.value, node.attr)
             if success:
                 return KnownValue(value=attr), state
-            else:
-                new_value, state = fmap_kvalue_to_node(result, state)
-                return repalce_fields(node, value=new_value), state
-        else:
-            return replace_fields(node, value=result), state
+
+        new_value, state = fmap_kvalue_to_node(result, state)
+        return replace_fields(node, value=new_value), state
 
     @staticmethod
     def handle_Subscript(node, state, ctx):
