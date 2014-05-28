@@ -320,6 +320,59 @@ def test_subscript():
     check_peval_expression('x[a:b,c::d]', dict(x='abc'), '"abc"[a:b,c::d]')
 
 
+def test_function_call():
+
+    @pure_function
+    def fn_args(x, y):
+        return x, y
+
+    check_peval_expression('fn(x + z, y + 5)', dict(fn=fn_args, x=10, z=20), 'fn(30, y + 5)')
+    check_peval_expression(
+        'fn(x + 10, y + 5)', dict(fn=fn_args, x=10, y=20), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=(20, 25)),
+        fully_evaluated=True, expected_value=(20, 25))
+
+    @pure_function
+    def fn_args_kwds(x, y, z=5):
+        return x, y, z
+
+    check_peval_expression('fn(x, y, z=a + 1)', dict(fn=fn_args_kwds, a=10), 'fn(x, y, z=11)')
+    check_peval_expression(
+        'fn(x, y, z=a + 1)', dict(fn=fn_args_kwds, x=1, y=2, a=10), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=(1, 2, 11)),
+        fully_evaluated=True, expected_value=(1, 2, 11))
+
+    @pure_function
+    def fn_varargs(x, y, *args):
+        return x, y, args
+
+    check_peval_expression(
+        'fn(x, y, *(a + b))', dict(fn=fn_varargs, a=(3, 4), b=(5,)), 'fn(x, y, *__peval_temp_1)',
+        expected_temp_bindings=dict(__peval_temp_1=(3, 4, 5)))
+    check_peval_expression(
+        'fn(x, y, *(a + b))', dict(fn=fn_varargs, x=1, y=2, a=(3, 4), b=(5,)), '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=(1, 2, (3, 4, 5))),
+        fully_evaluated=True, expected_value=(1, 2, (3, 4, 5)))
+
+    @pure_function
+    def fn_varkwds(*args, **kwds):
+        return args, kwds
+
+    @pure_function
+    def get_kwds(x):
+        return {'a': x}
+
+    check_peval_expression(
+        'fn(*a, **get_kwds(b))', dict(fn=fn_varkwds, get_kwds=get_kwds, b=5),
+        'fn(*a, **__peval_temp_1)',
+        expected_temp_bindings=dict(__peval_temp_1={'a': 5}))
+    check_peval_expression(
+        'fn(*a, **get_kwds(b))', dict(fn=fn_varkwds, get_kwds=get_kwds, a=(3, 4), b=5),
+        '__peval_temp_1',
+        expected_temp_bindings=dict(__peval_temp_1=((3, 4), {'a': 5})),
+        fully_evaluated=True, expected_value=((3, 4), {'a': 5}))
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 
@@ -356,30 +409,6 @@ def test_preferred_name():
     check_peval_expression(
         'm * n', dict(m=Int(2)),
         'm * n')
-
-
-def test_call_no_args():
-
-    @pure_function
-    def fn():
-        return 'Hi!'
-
-    check_peval_expression(
-        'fn()', dict(fn=fn), '"Hi!"',
-        fully_evaluated=True, expected_value='Hi!')
-
-
-def test_call_with_args():
-
-    @pure_function
-    def fn(x, y):
-        return x + [y]
-
-    check_peval_expression('fn(x, y)', dict(fn=fn, x=10), 'fn(10, y)')
-    check_peval_expression(
-            'fn(x, y)', dict(fn=fn, x=[10], y=20.0), '__peval_temp_1',
-            expected_temp_bindings=dict(__peval_temp_1=[10, 20.0]),
-            fully_evaluated=True, expected_value=[10, 20.0])
 
 
 def test_exception():

@@ -75,6 +75,14 @@ def _fmap_kvalue_to_node(container, gen_sym):
         container_type = type(container)
         result_type = list if container_type == zip else container_type
         return result_type(new_container), gen_sym, result_bindings
+    elif type(container) == dict:
+        new_container = dict(container)
+        result_bindings = {}
+        for key in new_container:
+            new_container[key], gen_sym, temp_bindings = (
+                _fmap_kvalue_to_node(new_container[key], gen_sym))
+            result_bindings.update(temp_bindings)
+        return new_container, gen_sym, result_bindings
     elif is_known_value(container):
         return kvalue_to_node(container, gen_sym)
     else:
@@ -101,6 +109,11 @@ def fmap_peval_expression(container, state, ctx):
         container_type = type(container)
         result_type = list if container_type == zip else container_type
         return result_type(new_container), state
+    elif type(container) == dict:
+        new_container = dict(container)
+        for key in new_container:
+            new_container[key], state = fmap_peval_expression(new_container[key], state, ctx)
+        return new_container, state
     elif is_known_value(container):
         return container, state
     else:
@@ -111,6 +124,8 @@ def fmap_peval_expression(container, state, ctx):
 def fmap_is_known_value(container):
     if type(container) in (list, tuple, zip):
         return all(map(fmap_is_known_value, container))
+    elif type(container) == dict:
+        return all(map(fmap_is_known_value, container.values()))
     else:
         return is_known_value(container)
 
@@ -118,8 +133,23 @@ def fmap_is_known_value(container):
 def fmap_is_known_value_or_none(container):
     if type(container) in (list, tuple, zip):
         return all(map(fmap_is_known_value_or_none, container))
+    elif type(container) == dict:
+        return all(map(fmap_is_known_value_or_none, container.values()))
     else:
         return container is None or is_known_value(container)
+
+
+def fmap_get_value_or_none(container):
+    container_type = type(container)
+    if container_type in (list, tuple, zip):
+        result_type = list if container_type == zip else container_type
+        return result_type(map(fmap_get_value_or_none, container))
+    elif type(container) == dict:
+        return dict((key, fmap_get_value_or_none(value)) for key, value in container.items())
+    elif container is None:
+        return None
+    else:
+        return container.value
 
 
 def try_call_method(obj, name, *args, **kwds):
@@ -130,65 +160,41 @@ def try_get_attribute(obj, name, *args, **kwds):
     return True, getattr(obj, name)
 
 
-def peval_call(state, ctx, function, args=[], keywords=[], starargs=None, kwargs=None):
+def peval_call(state, ctx, func, args=[], keywords=[], starargs=None, kwargs=None):
 
-    can_eval = True
+    # ``keywords`` is a list of ``ast.keyword`` objects
+    keywords_order = [keyword.arg for keyword in keywords]
+    keywords = dict((keyword.arg, keyword) for keyword in keywords)
 
-    function_value, state = _peval_expression(function, state, ctx)
-    if not is_known_value(function_value):
-        can_eval = False
+    results, state = fmap_peval_expression(
+        dict(func=func, args=args, keywords=keywords, starargs=starargs, kwargs=kwargs),
+        state, ctx)
 
-    args_values = []
-    for arg in args:
-        value, state = _peval_expression(arg, state, ctx)
-        args_values.append(value)
-        if not is_known_value(value):
-            can_eval = False
+    can_eval = (
+        is_known_value(results['func'])
+        and is_function_evalable(results['func'].value)
+        and fmap_is_known_value_or_none(results))
 
-    keywords_values = []
-    #for keyword in keywords:
-    #    env, value = get_expr_value(env, keyword.value)
-    #    keywords_values.append((keyword.arg, value))
-
-    #if starargs is not None:
-    #    env, starargs_value = get_expr_value(env, starargs)
-    #else:
-    starargs_values = None
-
-    #if kwargs is not None:
-    #    env, kwargs_value = get_expr_value(env, kwargs)
-    #else:
-    kwargs_values = None
-
-    if can_eval and is_function_evalable(function_value.value):
-        args = [arg.value for arg in args_values]
-        keywords = [(name, keyword.value) for name, keyword in keywords_values]
-        starargs = starargs_value.value if starargs_values is not None else None
-        kwargs = kwargs_value.value if kwargs_values is not None else None
-
+    if can_eval:
+        values = fmap_get_value_or_none(results)
+        print("Evaluating:", values)
         try:
             value = eval_call(
-                function_value.value,
-                args=args, keywords=keywords, starargs=starargs, kwargs=kwargs)
+                values['func'], args=values['args'], keywords=values['keywords'],
+                starargs=values['starargs'], kwargs=values['kwargs'])
         except Exception:
+            # Exception was raised, leave unevaluated
             pass
         else:
             return KnownValue(value), state
 
-    # Could not evaluate the function, returning the partially evaluated node
-    containers = dict(
-        func=function_value,
-        args=args_values,
-        keywords=keywords_values,
-        starargs=starargs_values,
-        kwargs=kwargs_values)
-    mapped_containers = {}
-    for name, container in containers.items():
-        container, state = fmap_kvalue_to_node(container, state)
-        mapped_containers[name] = container
-    result = ast.Call(**mapped_containers)
+    nodes, state = fmap_kvalue_to_node(results, state)
 
-    return result, state
+    # restore the keyword list
+    keywords = nodes['keywords']
+    nodes['keywords'] = [ast.keyword(arg=key, value=keywords[key]) for key in keywords_order]
+
+    return ast.Call(**nodes), state
 
 
 def is_function_evalable(function):
@@ -308,6 +314,7 @@ class _peval_expression:
 
     @staticmethod
     def handle(node, state, ctx):
+        # Pass through in case of type(node) == KnownValue
         return node, state
 
     @staticmethod
@@ -438,7 +445,19 @@ class _peval_expression:
 
     @staticmethod
     def handle_Call(node, state, ctx):
-        return peval_call(state, ctx, node.func, args=node.args)
+        return peval_call(
+            state, ctx, node.func, args=node.args, keywords=node.keywords,
+            starargs=node.starargs, kwargs=node.kwargs)
+
+    @staticmethod
+    def handle_keyword(node, state, ctx):
+        result, state = _peval_expression(node.value, state, ctx)
+        if is_known_value(result):
+            # The handler for ast.Call will take care of preserving this keyword's name;
+            # this method's task is to try and calculate the value.
+            return KnownValue(value=result.value), state
+        else:
+            return node, state
 
     @staticmethod
     def handle_Repr(node, state, ctx):
