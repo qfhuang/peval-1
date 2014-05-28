@@ -115,6 +115,13 @@ def fmap_is_known_value(container):
         return is_known_value(container)
 
 
+def fmap_is_known_value_or_none(container):
+    if type(container) in (list, tuple, zip):
+        return all(map(fmap_is_known_value_or_none, container))
+    else:
+        return container is None or is_known_value(container)
+
+
 def try_call_method(obj, name, *args, **kwds):
     return True, getattr(obj, name)(*args, **kwds)
 
@@ -457,7 +464,46 @@ class _peval_expression:
 
     @staticmethod
     def handle_Subscript(node, state, ctx):
-        raise NotImplementedError
+        value_result, state = _peval_expression(node.value, state, ctx)
+        slice_result, state = _peval_expression(node.slice, state, ctx)
+        if is_known_value(value_result) and is_known_value(slice_result):
+            success, elem = try_call_method(
+                value_result.value, '__getitem__', slice_result.value)
+            if success:
+                return KnownValue(value=elem), state
+
+        new_value, state = fmap_kvalue_to_node(value_result, state)
+        new_slice, state = fmap_kvalue_to_node(slice_result, state)
+        if type(new_slice) not in (ast.Index, ast.Slice, ast.ExtSlice):
+            new_slice = ast.Index(value=new_slice)
+        return replace_fields(node, value=new_value, slice=new_slice), state
+
+    @staticmethod
+    def handle_Index(node, state, ctx):
+        result, state = _peval_expression(node.value, state, ctx)
+        if is_known_value(result):
+            return KnownValue(value=result.value), state
+        else:
+            return result, state
+
+    @staticmethod
+    def handle_Slice(node, state, ctx):
+        results, state = fmap_peval_expression((node.lower, node.upper, node.step), state, ctx)
+        # how do we handle None values in nodes? Technically, they are known values
+        if fmap_is_known_value_or_none(results):
+            lower, upper, step = [result if result is None else result.value for result in results]
+            return KnownValue(value=slice(lower, upper, step)), state
+        new_nodes, state = fmap_kvalue_to_node(results, state)
+        new_node = replace_fields(node, lower=new_nodes[0], upper=new_nodes[1], step=new_nodes[2])
+        return new_node, state
+
+    @staticmethod
+    def handle_ExtSlice(node, state, ctx):
+        results, state = fmap_peval_expression(node.dims, state, ctx)
+        if fmap_is_known_value(results):
+            return KnownValue(value=tuple(result.value for result in results)), state
+        new_nodes, state = fmap_kvalue_to_node(results, state)
+        return replace_fields(node, dims=new_nodes), state
 
     @staticmethod
     def handle_Tuple(node, state, ctx):

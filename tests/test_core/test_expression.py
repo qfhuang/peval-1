@@ -290,6 +290,36 @@ def test_attribute():
     check_peval_expression('(x + y).a', dict(x=1), '(1 + y).a')
 
 
+def test_subscript():
+
+    # Simple indices
+
+    check_peval_expression(
+        'x[a]', dict(x="abc", a=1), '"b"', fully_evaluated=True, expected_value='b')
+    check_peval_expression('x[a + 4]', dict(a=1), 'x[5]')
+    check_peval_expression('x[a + 4]', dict(x='abc'), '"abc"[a + 4]')
+
+    # Slices
+
+    check_peval_expression(
+        'x[a+b:c:d]', dict(x="abcdef", a=0, b=1, c=3, d=1), '"bc"',
+        fully_evaluated=True, expected_value='bc')
+    check_peval_expression(
+        'x[a+b:c]', dict(x="abcdef", a=0, b=1, c=3), '"bc"',
+        fully_evaluated=True, expected_value='bc')
+    check_peval_expression(
+        'x[a + 4: 10]', dict(a=1), 'x[__peval_temp_1]',
+        expected_temp_bindings=dict(__peval_temp_1=slice(5, 10)))
+    check_peval_expression('x[a + 4:10]', dict(x='abc'), '"abc"[a + 4: 10]')
+
+    # Extended slices
+
+    check_peval_expression(
+        'x[a+4:10, :b:c]', dict(a=1, b=10, c=3), 'x[__peval_temp_1]',
+        expected_temp_bindings=dict(__peval_temp_1=(slice(5, 10), slice(None, 10, 3))))
+    check_peval_expression('x[a:b,c::d]', dict(x='abc'), '"abc"[a:b,c::d]')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 
