@@ -393,10 +393,10 @@ def test_list_comprehension():
         '[x + 1 for x in range(a)]', dict(a=10), '[x + 1 for x in range(10)]')
 
     check_peval_expression(
-        '[x + y for x, y in zip(range(a), range(a))]',
+        '[x + y for x, y in [(1, 2), (2, 3)]]',
         dict(a=10, range=range, zip=zip), '__peval_temp_2',
-        expected_temp_bindings=dict(__peval_temp_2=list(range(0, 20, 2))),
-        fully_evaluated=True, expected_value=list(range(0, 20, 2)))
+        expected_temp_bindings=dict(__peval_temp_2=[3, 5]),
+        fully_evaluated=True, expected_value=[3, 5])
 
 
 def test_partial_bin_op():
