@@ -29,6 +29,13 @@ core/symbol_finder
 * ?BUG: ``find_symbol_usages()`` must include other ways of using a symbol (if there are any).
 * BUG: ``find_symbol_creations()`` must include symbols created by ``except Exception as e`` in the list.
   In Python3 ``e`` is just a plain string, so it is not caught by the current algorithm looking for ``ast.Store`` constructors.
+* BUG: ``find_symbol_usages()`` (and probably ``find_symbol_creations()`` as well) must take into account temporary rebindings in comprehensions.
+
+
+core/function
+-------------
+
+* FEATURE: implement "layered" context object to avoid copying massive globals dictionaries.
 
 
 core/expression
