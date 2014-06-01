@@ -384,6 +384,21 @@ def test_yield_from():
     check_peval_expression('yield from iter(a)', dict(a=1), 'yield from iter(1)')
 
 
+def test_list_comprehension():
+    check_peval_expression(
+        '[x + 1 for x in range(a)]', dict(a=10, range=range), '__peval_temp_2',
+        expected_temp_bindings=dict(__peval_temp_2=list(range(1, 11))),
+        fully_evaluated=True, expected_value=list(range(1, 11)))
+    check_peval_expression(
+        '[x + 1 for x in range(a)]', dict(a=10), '[x + 1 for x in range(10)]')
+
+    check_peval_expression(
+        '[x + y for x, y in zip(range(a), range(a))]',
+        dict(a=10, range=range, zip=zip), '__peval_temp_2',
+        expected_temp_bindings=dict(__peval_temp_2=list(range(0, 20, 2))),
+        fully_evaluated=True, expected_value=list(range(0, 20, 2)))
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

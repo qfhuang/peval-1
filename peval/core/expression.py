@@ -308,6 +308,179 @@ def peval_compare(state, ctx, node):
         return ast.BoolOp(op=ast.And(), values=nodes), state
 
 
+class CannotEvaluateComprehension:
+    pass
+
+
+def peval_comprehension(node, state, ctx):
+
+    # variables from generators temporary mask bindings
+    target_names = set()
+    for generator in node.generators:
+        if type(generator.target) == ast.Name:
+            target_names.add(generator.target.id)
+        else:
+            target_names.update([elt.id for elt in generator.target.elts])
+
+    # pre-evaluate the expression
+    elt_bindings = dict(ctx.bindings)
+    for name in target_names:
+        if name in elt_bindings:
+            del elt_bindings[name]
+    elt_ctx = ctx.update(bindings=elt_bindings)
+    new_elt, state = _peval_expression(node.elt, state, elt_ctx)
+
+    try:
+        container, state = _peval_comprehension(new_elt, node.generators, state, ctx)
+        evaluated = True
+    except CannotEvaluateComprehension:
+        evaluated = False
+
+    if evaluated:
+        return KnownValue(value=container), state
+    else:
+        new_elt, state = fmap_kvalue_to_node(new_elt, state)
+        new_generators, state = _peval_comprehension_generators(node.generators, state, ctx)
+        return replace_fields(node, elt=new_elt, generators=new_generators), state
+
+
+def _peval_comprehension_ifs(ifs, state, ctx):
+    if len(ifs) > 0:
+        joint_ifs = ast.BoolOp(op=ast.And(), values=ifs)
+        joint_ifs_result, state = _peval_expression(joint_ifs, state, ctx)
+        if is_known_value(joint_ifs_result):
+            return joint_ifs_result, state
+        else:
+            return joint_ifs_result.values, state
+    else:
+        return KnownValue(value=True), state
+
+
+def _get_masked_bindings(target, bindings):
+    if type(target) == ast.Name:
+        target_names = [target.id]
+    else:
+        target_names = [elt.id for elt in target.elts]
+
+    new_bindings = dict(bindings)
+    for name in target_names:
+        if name in new_bindings:
+            del new_bindings[name]
+
+    return new_bindings
+
+
+def _peval_comprehension_generators(generators, state, ctx):
+    if len(generators) == 0:
+        return [], state
+
+    generator = generators[0]
+    next_generators = generators[1:]
+
+    iter_result, state = _peval_expression(generator.iter, state, ctx)
+
+    masked_bindings = _get_masked_bindings(generator.target, ctx.bindings)
+    masked_ctx = ctx.set('bindings', masked_bindings)
+
+    ifs_result, state = _peval_comprehension_ifs(generator.ifs, state, masked_ctx)
+
+    if is_known_value(ifs_result) and ifs_result.value: # FIXME: evaluating bool
+        ifs_result = []
+
+    new_generator_kwds, state = fmap_kvalue_to_node(
+        dict(target=generator.target, iter=iter_result, ifs=ifs_result), state)
+    new_generator = ast.comprehension(**new_generator_kwds)
+
+    new_generators, state = _peval_comprehension_generators(next_generators, state, ctx)
+
+    return [new_generator] + new_generators, state
+
+
+def _try_unpack_sequence(seq, node):
+    # node is either a Name, a Tuple of Names, or a List of Names
+    if type(node) == ast.Name:
+        return True, {node.id: seq}
+    elif type(node) in (ast.Tuple, ast.List):
+        if not all(map(lambda elt: type(elt) == ast.Name, node.elts)):
+            return False, None
+        bindings = {}
+        it = iter(seq)
+
+        if it is seq:
+            return False, None
+
+        for elt in node.elts:
+            try:
+                elem = next(it)
+            except (IndexError, StopIteration):
+                return False, None
+            bindings[elt.id] = elem
+
+        try:
+            elem = next(it)
+        except (IndexError, StopIteration):
+            return True, bindings
+
+        return False, None
+
+    else:
+        return False, None
+
+
+def _peval_comprehension(elt, generators, state, ctx):
+
+    generator = generators[0]
+    next_generators = generators[1:]
+
+    iter_result, state = _peval_expression(generator.iter, state, ctx)
+
+    masked_bindings = _get_masked_bindings(generator.target, ctx.bindings)
+    masked_ctx = ctx.set('bindings', masked_bindings)
+
+    ifs_result, state = _peval_comprehension_ifs(generator.ifs, state, masked_ctx)
+
+    # FIXME: calling various methods here. Needs to be run through policies.
+    if is_known_value(iter_result):
+        iterable = iter_result.value
+        iterator = iter(iterable)
+        iterator_evaluated = True
+    else:
+        iterator_evaluated = False
+
+    if not iterator_evaluated or iterator is iterable:
+        raise CannotEvaluateComprehension
+
+    accumulator = []
+
+    for targets in iterable:
+
+        unpacked, target_bindings = _try_unpack_sequence(targets, generator.target)
+        if not unpacked:
+            raise CannotEvaluateComprehension
+
+        iter_bindings = dict(ctx.bindings)
+        iter_bindings.update(target_bindings)
+        iter_ctx = ctx.set('bindings', iter_bindings)
+
+        ifs_value, state = _peval_expression(ifs_result, state, iter_ctx)
+        if not is_known_value(ifs_value):
+            raise CannotEvaluateComprehension
+
+        if not ifs_value.value: # FIXME: calling bool()
+            continue
+
+        if len(next_generators) == 0:
+            elt_result, state = _peval_expression(elt, state, iter_ctx)
+            if not is_known_value(elt_result):
+                raise CannotEvaluateComprehension
+            accumulator.append(elt_result.value)
+        else:
+            part, state = _peval_comprehension(elt, next_generators, state, iter_ctx)
+            accumulator.extend(part)
+
+    return accumulator, state
+
+
 @Dispatcher
 class _peval_expression:
 
@@ -420,7 +593,7 @@ class _peval_expression:
 
     @staticmethod
     def handle_ListComp(node, state, ctx):
-        raise NotImplementedError
+        return peval_comprehension(node, state, ctx)
 
     @staticmethod
     def handle_SetComp(node, state, ctx):
