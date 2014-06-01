@@ -308,7 +308,7 @@ def peval_compare(state, ctx, node):
         return ast.BoolOp(op=ast.And(), values=nodes), state
 
 
-class CannotEvaluateComprehension:
+class CannotEvaluateComprehension(Exception):
     pass
 
 
