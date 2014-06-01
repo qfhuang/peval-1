@@ -399,6 +399,26 @@ def test_list_comprehension():
         fully_evaluated=True, expected_value=[3, 5])
 
 
+def test_set_comprehension():
+    if sys.version_info < (3,):
+        pytest.skip()
+    check_peval_expression(
+        '{x + 1 for x in range(a)}', dict(a=10, range=range), '__peval_temp_2',
+        expected_temp_bindings=dict(__peval_temp_2=set(range(1, 11))),
+        fully_evaluated=True, expected_value=set(range(1, 11)))
+    check_peval_expression(
+        '{x + 1 for x in range(a)}', dict(a=10), '{x + 1 for x in range(10)}')
+
+
+def test_dict_comprehension():
+    check_peval_expression(
+        '{x+1:x+2 for x in range(a)}', dict(a=2, range=range), '__peval_temp_3',
+        expected_temp_bindings=dict(__peval_temp_3={1:2, 2:3}),
+        fully_evaluated=True, expected_value={1:2, 2:3})
+    check_peval_expression(
+        '{x+1:x+2 for x in range(a)}', dict(a=2), '{x+1:x+2 for x in range(2)}')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 

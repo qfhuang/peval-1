@@ -312,7 +312,58 @@ class CannotEvaluateComprehension(Exception):
     pass
 
 
+class ListAccumulator:
+
+    def __init__(self):
+        self.accum = []
+
+    def add_elem(self, elem):
+        self.accum.append(elem)
+
+    def add_part(self, part):
+        self.accum.extend(part)
+
+    def get_accum(self):
+        return self.accum
+
+
+class SetAccumulator:
+
+    def __init__(self):
+        self.accum = set()
+
+    def add_elem(self, elem):
+        self.accum.add(elem)
+
+    def add_part(self, part):
+        self.accum.update(part)
+
+    def get_accum(self):
+        return self.accum
+
+
+class DictAccumulator:
+
+    def __init__(self):
+        self.accum = {}
+
+    def add_elem(self, elem):
+        self.accum[elem[0]] = elem[1]
+
+    def add_part(self, part):
+        self.accum.update(part)
+
+    def get_accum(self):
+        return self.accum
+
+
 def peval_comprehension(node, state, ctx):
+
+    accum_cls = {
+        ast.ListComp: ListAccumulator,
+        ast.SetComp: SetAccumulator,
+        ast.DictComp: DictAccumulator,
+    }
 
     # variables from generators temporary mask bindings
     target_names = set()
@@ -328,10 +379,16 @@ def peval_comprehension(node, state, ctx):
         if name in elt_bindings:
             del elt_bindings[name]
     elt_ctx = ctx.update(bindings=elt_bindings)
-    new_elt, state = _peval_expression(node.elt, state, elt_ctx)
+
+    if type(node) == ast.DictComp:
+        elt = ast.Tuple(elts=[node.key, node.value])
+    else:
+        elt = node.elt
+    new_elt, state = _peval_expression(elt, state, elt_ctx)
 
     try:
-        container, state = _peval_comprehension(new_elt, node.generators, state, ctx)
+        container, state = _peval_comprehension(
+            accum_cls[type(node)], new_elt, node.generators, state, ctx)
         evaluated = True
     except CannotEvaluateComprehension:
         evaluated = False
@@ -341,7 +398,11 @@ def peval_comprehension(node, state, ctx):
     else:
         new_elt, state = fmap_kvalue_to_node(new_elt, state)
         new_generators, state = _peval_comprehension_generators(node.generators, state, ctx)
-        return replace_fields(node, elt=new_elt, generators=new_generators), state
+        if type(node) == ast.DictComp:
+            key, value = new_elt.elts
+            return replace_fields(node, key=key, value=value, generators=new_generators), state
+        else:
+            return replace_fields(node, elt=new_elt, generators=new_generators), state
 
 
 def _peval_comprehension_ifs(ifs, state, ctx):
@@ -427,7 +488,7 @@ def _try_unpack_sequence(seq, node):
         return False, None
 
 
-def _peval_comprehension(elt, generators, state, ctx):
+def _peval_comprehension(accum_cls, elt, generators, state, ctx):
 
     generator = generators[0]
     next_generators = generators[1:]
@@ -450,7 +511,7 @@ def _peval_comprehension(elt, generators, state, ctx):
     if not iterator_evaluated or iterator is iterable:
         raise CannotEvaluateComprehension
 
-    accumulator = []
+    accum = accum_cls()
 
     for targets in iterable:
 
@@ -473,12 +534,12 @@ def _peval_comprehension(elt, generators, state, ctx):
             elt_result, state = _peval_expression(elt, state, iter_ctx)
             if not is_known_value(elt_result):
                 raise CannotEvaluateComprehension
-            accumulator.append(elt_result.value)
+            accum.add_elem(elt_result.value)
         else:
-            part, state = _peval_comprehension(elt, next_generators, state, iter_ctx)
-            accumulator.extend(part)
+            part, state = _peval_comprehension(accum_cls, elt, next_generators, state, iter_ctx)
+            accum.add_part(part)
 
-    return accumulator, state
+    return accum.get_accum(), state
 
 
 @Dispatcher
@@ -610,11 +671,11 @@ class _peval_expression:
 
     @staticmethod
     def handle_SetComp(node, state, ctx):
-        raise NotImplementedError
+        return peval_comprehension(node, state, ctx)
 
     @staticmethod
     def handle_DictComp(node, state, ctx):
-        raise NotImplementedError
+        return peval_comprehension(node, state, ctx)
 
     @staticmethod
     def handle_GeneratorExp(node, state, ctx):
