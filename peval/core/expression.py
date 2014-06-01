@@ -412,13 +412,13 @@ def _try_unpack_sequence(seq, node):
         for elt in node.elts:
             try:
                 elem = next(it)
-            except (IndexError, StopIteration):
+            except StopIteration:
                 return False, None
             bindings[elt.id] = elem
 
         try:
             elem = next(it)
-        except (IndexError, StopIteration):
+        except StopIteration:
             return True, bindings
 
         return False, None
