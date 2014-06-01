@@ -361,9 +361,13 @@ def peval_comprehension(node, state, ctx):
 
     accum_cls = {
         ast.ListComp: ListAccumulator,
-        ast.SetComp: SetAccumulator,
-        ast.DictComp: DictAccumulator,
     }
+
+    if sys.version_info >= (2, 7):
+        accum_cls.update({
+            ast.SetComp: SetAccumulator,
+            ast.DictComp: DictAccumulator,
+        })
 
     # variables from generators temporary mask bindings
     target_names = set()
@@ -380,7 +384,7 @@ def peval_comprehension(node, state, ctx):
             del elt_bindings[name]
     elt_ctx = ctx.update(bindings=elt_bindings)
 
-    if type(node) == ast.DictComp:
+    if sys.version_info >= (2, 7) and type(node) == ast.DictComp:
         elt = ast.Tuple(elts=[node.key, node.value])
     else:
         elt = node.elt
@@ -398,7 +402,7 @@ def peval_comprehension(node, state, ctx):
     else:
         new_elt, state = fmap_kvalue_to_node(new_elt, state)
         new_generators, state = _peval_comprehension_generators(node.generators, state, ctx)
-        if type(node) == ast.DictComp:
+        if sys.version_info >= (2, 7) and type(node) == ast.DictComp:
             key, value = new_elt.elts
             return replace_fields(node, key=key, value=value, generators=new_generators), state
         else:

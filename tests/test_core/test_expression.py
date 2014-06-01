@@ -400,7 +400,7 @@ def test_list_comprehension():
 
 
 def test_set_comprehension():
-    if sys.version_info < (3,):
+    if sys.version_info < (2, 7):
         pytest.skip()
     check_peval_expression(
         '{x + 1 for x in range(a)}', dict(a=10, range=range), '__peval_temp_2',
