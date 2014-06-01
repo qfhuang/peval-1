@@ -357,10 +357,32 @@ class DictAccumulator:
         return self.accum
 
 
+class GeneratorExpAccumulator:
+    """
+    This is just a list that presents itself as a generator expression
+    (to preserve the type after partial evaluation).
+    Since we are evaluating each of its elements before returning it anyway,
+    it does not really matter.
+    """
+
+    def __init__(self):
+        self.accum = []
+
+    def add_elem(self, elem):
+        self.accum.append(elem)
+
+    def add_part(self, part):
+        self.accum.extend(list(part))
+
+    def get_accum(self):
+        return (x for x in self.accum)
+
+
 def peval_comprehension(node, state, ctx):
 
     accum_cls = {
         ast.ListComp: ListAccumulator,
+        ast.GeneratorExp: GeneratorExpAccumulator,
     }
 
     if sys.version_info >= (2, 7):
@@ -683,7 +705,7 @@ class _peval_expression:
 
     @staticmethod
     def handle_GeneratorExp(node, state, ctx):
-        raise NotImplementedError
+        return peval_comprehension(node, state, ctx)
 
     @staticmethod
     def handle_Yield(node, state, ctx):

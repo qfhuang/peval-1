@@ -421,6 +421,45 @@ def test_dict_comprehension():
         '{x+1:x+2 for x in range(a)}', dict(a=2), '{x+1:x+2 for x in range(2)}')
 
 
+def test_generator_exp():
+
+    # Need to do this manually, since we can't compare generator expressions
+    # without changing their state.
+
+    source_tree = expression_ast("(x + 1 for x in range(a))")
+    expected_tree = expression_ast("__peval_temp_2")
+    bindings = dict(a=10, range=range)
+
+    gen_sym = GenSym()
+    result, gen_sym = peval_expression(source_tree, gen_sym, bindings)
+
+    assert_ast_equal(result.node, expected_tree)
+    assert result.fully_evaluated
+
+    expected_genexp = (x + 1 for x in range(10))
+
+    assert type(result.value) == type(expected_genexp)
+    assert list(result.value) == list(expected_genexp)
+
+    # Since the binding contained the reference to the same genexp,
+    # and we destroyed it, we need to do the evaluation again
+    # in order to check the binding as well
+
+    gen_sym = GenSym()
+    result, gen_sym = peval_expression(source_tree, gen_sym, bindings)
+
+    expected_genexp = (x + 1 for x in range(10))
+
+    assert '__peval_temp_2' in result.temp_bindings
+    binding = result.temp_bindings['__peval_temp_2']
+    assert type(binding) == type(expected_genexp)
+    assert list(binding) == list(expected_genexp)
+
+
+    check_peval_expression(
+        '(x + 1 for x in range(a))', dict(a=10), '(x + 1 for x in range(10))')
+
+
 def test_partial_bin_op():
     check_peval_expression("5 + 6 + a", {}, "11 + a")
 
