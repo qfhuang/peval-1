@@ -411,6 +411,8 @@ def test_set_comprehension():
 
 
 def test_dict_comprehension():
+    if sys.version_info < (2, 7):
+        pytest.skip()
     check_peval_expression(
         '{x+1:x+2 for x in range(a)}', dict(a=2, range=range), '__peval_temp_3',
         expected_temp_bindings=dict(__peval_temp_3={1:2, 2:3}),
