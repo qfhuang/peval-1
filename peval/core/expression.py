@@ -177,7 +177,6 @@ def peval_call(state, ctx, func, args=[], keywords=[], starargs=None, kwargs=Non
 
     if can_eval:
         values = fmap_get_value_or_none(results)
-        print("Evaluating:", values)
         try:
             value = eval_call(
                 values['func'], args=values['args'], keywords=values['keywords'],
