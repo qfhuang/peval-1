@@ -579,6 +579,19 @@ class _peval_expression:
             return replace_fields(node, elts=new_elts), state
 
     @staticmethod
+    def handle_Tuple(node, state, ctx):
+
+        elts, state = fmap_peval_expression(node.elts, state, ctx)
+        can_eval = fmap_is_known_value(elts)
+
+        if can_eval:
+            new_list = tuple(elt.value for elt in elts)
+            return KnownValue(value=new_list), state
+        else:
+            new_elts, state = fmap_kvalue_to_node(elts, state)
+            return replace_fields(node, elts=new_elts), state
+
+    @staticmethod
     def handle_Set(node, state, ctx):
 
         elts, state = fmap_peval_expression(node.elts, state, ctx)
@@ -709,19 +722,6 @@ class _peval_expression:
             return KnownValue(value=tuple(result.value for result in results)), state
         new_nodes, state = fmap_kvalue_to_node(results, state)
         return replace_fields(node, dims=new_nodes), state
-
-    @staticmethod
-    def handle_Tuple(node, state, ctx):
-        elts = []
-        for elt in node.elts:
-            elt_value, state = _peval_expression(elt, state, ctx)
-            elts.append(elt_value)
-
-        if all(is_known_value(elt) for elt in elts):
-            return KnownValue(tuple(elts)), state
-        else:
-            elts, state = fmap_kvalue_to_node(elts, state)
-            return ast.Tuple(elts=elts, ctx=ast.Load()), state
 
 
 class EvaluationResult:
