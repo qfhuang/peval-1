@@ -152,12 +152,25 @@ def fmap_get_value_or_none(container):
         return container.value
 
 
-def try_call_method(obj, name, *args, **kwds):
-    return True, getattr(obj, name)(*args, **kwds)
+def try_call(obj, args=(), kwds={}):
+    # The only entry point for function calls.
+    # FIXME: function and arguments must be checked against policies here.
+    try:
+        value = obj(*args, **kwds)
+    except Exception:
+        return False, None
+    return True, value
 
 
-def try_get_attribute(obj, name, *args, **kwds):
-    return True, getattr(obj, name)
+def try_get_attribute(obj, name):
+    return try_call(getattr, args=(obj, name))
+
+
+def try_call_method(obj, name, args=(), kwds={}):
+    success, attr = try_get_attribute(obj, name)
+    if not success:
+        return False, None
+    return try_call(attr, args=args, kwds=kwds)
 
 
 def peval_call(state, ctx, func, args=[], keywords=[], starargs=None, kwargs=None):
@@ -170,22 +183,13 @@ def peval_call(state, ctx, func, args=[], keywords=[], starargs=None, kwargs=Non
         dict(func=func, args=args, keywords=keywords, starargs=starargs, kwargs=kwargs),
         state, ctx)
 
-    can_eval = (
-        is_known_value(results['func'])
-        and is_function_evalable(results['func'].value)
-        and fmap_is_known_value_or_none(results))
-
-    if can_eval:
+    if fmap_is_known_value_or_none(results):
         values = fmap_get_value_or_none(results)
-        try:
-            value = eval_call(
-                values['func'], args=values['args'], keywords=values['keywords'],
-                starargs=values['starargs'], kwargs=values['kwargs'])
-        except Exception:
-            # Exception was raised, leave unevaluated
-            pass
-        else:
-            return KnownValue(value), state
+        success, value = try_eval_call(
+            values['func'], args=values['args'], keywords=values['keywords'],
+            starargs=values['starargs'], kwargs=values['kwargs'])
+        if success:
+            return KnownValue(value=value), state
 
     nodes, state = fmap_kvalue_to_node(results, state)
 
@@ -196,11 +200,7 @@ def peval_call(state, ctx, func, args=[], keywords=[], starargs=None, kwargs=Non
     return ast.Call(**nodes), state
 
 
-def is_function_evalable(function):
-    return True
-
-
-def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
+def try_eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
 
     starargs = starargs if starargs is not None else []
     kwargs = kwargs if kwargs is not None else {}
@@ -209,10 +209,11 @@ def eval_call(function, args=[], keywords=[], starargs=None, kwargs=None):
     kwds = dict(keywords)
     intersection = set(kwds).intersection(set(kwargs))
     if len(intersection) > 0:
-        raise Exception("Multiple values for keyword arguments " + repr(list(intersection)))
-    kwds.update(kwargs)
+        # Multiple values for some of the keyword arguments, will raise an exception on call.
+        return False, None
 
-    return function(*args, **kwds)
+    kwds.update(kwargs)
+    return try_call(function, args=args, kwds=kwds)
 
 
 def peval_boolop(state, ctx, op, values):
@@ -224,9 +225,11 @@ def peval_boolop(state, ctx, op, values):
 
         # Short circuit
         if is_known_value(new_value):
-            if ((type(op) == ast.And and not new_value.value)
-                    or (type(op) == ast.Or and new_value.value)):
+            success, bool_value = try_call(bool, args=(new_value.value,))
+            if success and ((type(op) == ast.And and not bool_value)
+                    or (type(op) == ast.Or and bool_value)):
                 return new_value, state
+            # Just skip it, it won't change the BoolOp result.
         else:
             new_values.append(new_value)
 
@@ -471,8 +474,10 @@ def _peval_comprehension_generators(generators, state, ctx):
 
     ifs_result, state = _peval_comprehension_ifs(generator.ifs, state, masked_ctx)
 
-    if is_known_value(ifs_result) and ifs_result.value: # FIXME: evaluating bool
-        ifs_result = []
+    if is_known_value(ifs_result):
+        success, bool_value = try_call(bool, args=(ifs_result.value,))
+        if success and bool_value:
+            ifs_result = []
 
     new_generator_kwds, state = fmap_kvalue_to_node(
         dict(target=generator.target, iter=iter_result, ifs=ifs_result), state)
@@ -491,7 +496,9 @@ def _try_unpack_sequence(seq, node):
         if not all(map(lambda elt: type(elt) == ast.Name, node.elts)):
             return False, None
         bindings = {}
-        it = iter(seq)
+        success, it = try_call(iter, args=(seq,))
+        if not success:
+            return False, None
 
         if it is seq:
             return False, None
@@ -526,11 +533,9 @@ def _peval_comprehension(accum_cls, elt, generators, state, ctx):
 
     ifs_result, state = _peval_comprehension_ifs(generator.ifs, state, masked_ctx)
 
-    # FIXME: calling various methods here. Needs to be run through policies.
     if is_known_value(iter_result):
         iterable = iter_result.value
-        iterator = iter(iterable)
-        iterator_evaluated = True
+        iterator_evaluated, iterator = try_call(iter, args=(iterable,))
     else:
         iterator_evaluated = False
 
@@ -553,7 +558,10 @@ def _peval_comprehension(accum_cls, elt, generators, state, ctx):
         if not is_known_value(ifs_value):
             raise CannotEvaluateComprehension
 
-        if not ifs_value.value: # FIXME: calling bool()
+        success, bool_value = try_call(bool, args=(ifs_value.value,))
+        if not success:
+            raise CannotEvaluateComprehension
+        if success and not bool_value:
             continue
 
         if len(next_generators) == 0:
@@ -627,16 +635,18 @@ class _peval_expression:
     def handle_IfExp(node, state, ctx):
         test_value, state = _peval_expression(node.test, state, ctx)
         if is_known_value(test_value):
-            taken_node = node.body if test_value.value else node.orelse
-            return _peval_expression(taken_node, state, ctx)
-        else:
-            new_body, state = _peval_expression(node.body, state, ctx)
-            new_orelse, state = _peval_expression(node.orelse, state, ctx)
+            success, bool_value = try_call(bool, args=(test_value.value,))
+            if success:
+                taken_node = node.body if bool_value else node.orelse
+                return _peval_expression(taken_node, state, ctx)
 
-            new_body_node, state = fmap_kvalue_to_node(new_body, state)
-            new_orelse_node, state = fmap_kvalue_to_node(new_orelse, state)
-            return replace_fields(
-                node, test=test_value, body=new_body_node, orelse=new_orelse_node), state
+        new_body, state = _peval_expression(node.body, state, ctx)
+        new_orelse, state = _peval_expression(node.orelse, state, ctx)
+
+        new_body_node, state = fmap_kvalue_to_node(new_body, state)
+        new_orelse_node, state = fmap_kvalue_to_node(new_orelse, state)
+        return replace_fields(
+            node, test=test_value, body=new_body_node, orelse=new_orelse_node), state
 
     @staticmethod
     def handle_Dict(node, state, ctx):
@@ -773,7 +783,7 @@ class _peval_expression:
         slice_result, state = _peval_expression(node.slice, state, ctx)
         if is_known_value(value_result) and is_known_value(slice_result):
             success, elem = try_call_method(
-                value_result.value, '__getitem__', slice_result.value)
+                value_result.value, '__getitem__', args=(slice_result.value,))
             if success:
                 return KnownValue(value=elem), state
 

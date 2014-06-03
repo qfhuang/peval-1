@@ -41,9 +41,6 @@ core/function
 core/expression
 ---------------
 
-* FEATURE: add support for varargs and kwargs in ``handle_Call()`` (see ``assert`` there)
-* BUG: evaluating ``bool()`` in handling ``IfExp`` or ``BoolOp`` is potentially (albeit unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
-  In general we need to merge all the safety checks when calling functions/methods or getting attributes into one place (see ``try_call_method()`` etc).
 * FEATURE: in Py3 ``iter()`` of a ``zip`` object returns itself, so list comprehension evaluator considers it unsafe to iterate it.
   Perhaps comprehensions need the same kind of policies as loop unroller does, to force evaluation in such cases (also in cases of various generator functions that can reference global variables and so on).
 
@@ -74,6 +71,7 @@ components/prune_cfg
 
 * FEATURE: we can detect unconditional jumps in ``for`` loops as well, but in order to remove the loop, we need the loop unrolling functionality.
 * BUG: evaluating ``bool(node.test)`` is potentially (albeit unlikely) unsafe (if it is some weird object with a weird ``__bool__()`` implementation).
+  Need to run it through the safe call function from the expression evaluator.
 
 
 components/inline
