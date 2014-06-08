@@ -41,6 +41,14 @@ core/function
 core/expression
 ---------------
 
+* FEATURE: add partial evaluation of lambdas (and nested function/class definitions).
+  Things to look out to:
+
+    * Need to see which outer variables the lambda uses as closures.
+      These we need to lock --- ``prune_assignments`` cannot remove them.
+    * Mark it as impure and mutating by default, unless the user explicitly marks it otherwise.
+    * Run its own partial evaluation for the nested function?
+
 * FEATURE: in Py3 ``iter()`` of a ``zip`` object returns itself, so list comprehension evaluator considers it unsafe to iterate it.
   Perhaps comprehensions need the same kind of policies as loop unroller does, to force evaluation in such cases (also in cases of various generator functions that can reference global variables and so on).
 
