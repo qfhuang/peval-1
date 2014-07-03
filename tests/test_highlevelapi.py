@@ -7,7 +7,7 @@ import functools
 import pytest
 
 from peval.core.function import Function
-from peval.decorators import inline
+from peval.tags import inline
 from peval import partial_apply
 from peval.utils import unshift
 

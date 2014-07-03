@@ -7,6 +7,7 @@ from peval.core.gensym import GenSym
 from peval.core.value import KnownValue, is_known_value, kvalue_to_node
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
+from peval.wisdom import get_mutation_info
 
 
 UNARY_OPS = {
@@ -154,7 +155,18 @@ def fmap_get_value_or_none(container):
 
 def try_call(obj, args=(), kwds={}):
     # The only entry point for function calls.
-    # FIXME: function and arguments must be checked against policies here.
+    sig = funcsigs.signature(obj)
+    try:
+        ba = sig.bind(*args, **kwds)
+    except TypeError:
+        # binding failed
+        return False, None
+
+    argtypes = dict((argname, type(value)) for argname, value in ba.arguments.items())
+    pure, mutating = get_mutation_info(obj, argtypes)
+    if not pure or len(mutating) > 0:
+        return False, None
+
     try:
         value = obj(*args, **kwds)
     except Exception:

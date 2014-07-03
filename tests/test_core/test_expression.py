@@ -5,7 +5,7 @@ import pytest
 
 from peval.core.expression import peval_expression, try_peval_expression
 from peval.core.gensym import GenSym
-from peval.decorators import pure_function
+from peval.tags import pure_function
 
 from tests.utils import assert_ast_equal
 
