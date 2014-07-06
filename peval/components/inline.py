@@ -3,6 +3,7 @@ import copy
 import sys
 
 from peval.utils import get_fn_arg_id
+from peval.tags import is_inline
 from peval.core.value import value_to_node
 from peval.core.expression import try_peval_expression
 from peval.core.function import Function
@@ -30,10 +31,10 @@ def inliner(node, state, prepend, **kwds):
         constants = state.constants
 
         evaluated, fn = try_peval_expression(node.func, constants)
-        if evaluated and is_inlined_fn(fn):
+
+        if evaluated and is_inline(fn):
             return_name, gen_sym = gen_sym('return')
             inlined_body, gen_sym, constants = _inline(node, gen_sym, return_name, constants)
-
             prepend(inlined_body)
             new_state = state.update(gen_sym=gen_sym, constants=constants)
 
@@ -42,12 +43,6 @@ def inliner(node, state, prepend, **kwds):
             return node, state
     else:
         return node, state
-
-
-def is_inlined_fn(fn):
-    ''' fn should be inlined
-    '''
-    return getattr(fn, '_peval_inline', False)
 
 
 def _inline(node, gen_sym, return_name, constants):

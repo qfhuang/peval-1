@@ -1,4 +1,7 @@
+import operator
 import types
+
+import funcsigs
 
 from peval.tags import is_pure, is_mutating
 
@@ -38,10 +41,57 @@ When evaluating a function:
 """
 
 
+KNOWN_SIGNATURES = {
+    bool: funcsigs.signature(lambda obj: None),
+    isinstance: funcsigs.signature(lambda obj, tp: None),
+    getattr: funcsigs.signature(lambda obj, name, default=None: None),
+    iter: funcsigs.signature(lambda obj: None),
+
+    operator.pos: funcsigs.signature(lambda a: None),
+    operator.neg: funcsigs.signature(lambda a: None),
+    operator.not_: funcsigs.signature(lambda a: None),
+    operator.invert: funcsigs.signature(lambda a: None),
+
+    operator.add: funcsigs.signature(lambda a, b: None),
+    operator.sub: funcsigs.signature(lambda a, b: None),
+    operator.mul: funcsigs.signature(lambda a, b: None),
+    operator.truediv: funcsigs.signature(lambda a, b: None),
+    operator.floordiv: funcsigs.signature(lambda a, b: None),
+    operator.mod: funcsigs.signature(lambda a, b: None),
+    operator.pow: funcsigs.signature(lambda a, b: None),
+    operator.lshift: funcsigs.signature(lambda a, b: None),
+    operator.rshift: funcsigs.signature(lambda a, b: None),
+    operator.or_: funcsigs.signature(lambda a, b: None),
+    operator.xor: funcsigs.signature(lambda a, b: None),
+    operator.and_: funcsigs.signature(lambda a, b: None),
+
+    operator.eq: funcsigs.signature(lambda a, b: None),
+    operator.ne: funcsigs.signature(lambda a, b: None),
+    operator.lt: funcsigs.signature(lambda a, b: None),
+    operator.le: funcsigs.signature(lambda a, b: None),
+    operator.gt: funcsigs.signature(lambda a, b: None),
+    operator.ge: funcsigs.signature(lambda a, b: None),
+    operator.is_: funcsigs.signature(lambda a, b: None),
+    operator.is_not: funcsigs.signature(lambda a, b: None),
+}
+
+
+def get_signature(obj):
+    if obj in KNOWN_SIGNATURES:
+        return KNOWN_SIGNATURES[obj]
+
+    if type(obj) == types.FunctionType:
+        return funcsigs.signature(obj)
+    elif type(obj) == types.MethodType:
+        return funcsigs.signature(obj)
+    elif type(obj) == type:
+        if type(obj.__init__) == types.FunctionType:
+            return funcsigs.signature(obj.__init__)
+    elif hasattr(obj, '__call__') and type(obj.__call__) == types.MethodType:
+        raise ValueError
+
+    raise ValueError("Cannot get signature from", obj)
+
+
 def get_mutation_info(func, argtypes):
-
-
-    pure_tag = is_pure(func)
-    if pure_tag is None:
-
-
+    return True, []
