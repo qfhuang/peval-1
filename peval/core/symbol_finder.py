@@ -1,8 +1,7 @@
 import ast
 import six
 
-from peval.tools import immutableset
-from peval.core.walker import ast_inspector
+from peval.tools import immutableset, ast_inspector
 
 
 if six.PY2:

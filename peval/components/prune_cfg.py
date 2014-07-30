@@ -1,9 +1,8 @@
 import ast
 import copy
 
-from peval.tools import replace_fields
+from peval.tools import replace_fields, ast_transformer
 from peval.core.expression import try_peval_expression
-from peval.core.walker import ast_transformer
 
 
 def prune_cfg(node, bindings):

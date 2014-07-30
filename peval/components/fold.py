@@ -5,11 +5,10 @@ import itertools
 from functools import reduce
 import copy
 
-from peval.tools import replace_fields
+from peval.tools import replace_fields, ast_transformer
 from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
 from peval.core.expression import peval_expression
-from peval.core.walker import ast_transformer
 
 
 class Value:

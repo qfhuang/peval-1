@@ -5,8 +5,9 @@ import sys
 
 import pytest
 
-from peval.tools import unindent, replace_fields, immutableset
-from peval.core.walker import ast_inspector, ast_transformer, ast_walker, _Walker
+from peval.tools import (
+    unindent, replace_fields, immutableset, ast_inspector, ast_transformer, ast_walker)
+from peval.tools.walker import _Walker
 
 from tests.utils import assert_ast_equal
 

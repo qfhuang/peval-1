@@ -8,8 +8,7 @@ from peval.core.expression import try_peval_expression
 from peval.core.function import Function
 from peval.core.mangler import mangle
 from peval.core.gensym import GenSym
-from peval.tools import get_fn_arg_id
-from peval.core.walker import ast_walker
+from peval.tools import get_fn_arg_id, ast_walker
 
 
 def inline_functions(tree, constants):

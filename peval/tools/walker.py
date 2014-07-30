@@ -14,7 +14,7 @@ def ast_walker(handler):
     """
     A generic AST walker decorator.
     Decorates either a function or a class (if dispatching based on node type is required).
-    See :py:class:`Dispatcher` for the details of the required class structure.
+    See :py:class:`~peval.tools.Dispatcher` for the details of the required class structure.
 
     Returns a callable with the signature
 
