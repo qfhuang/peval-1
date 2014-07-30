@@ -47,6 +47,9 @@ KNOWN_SIGNATURES = {
     getattr: funcsigs.signature(lambda obj, name, default=None: None),
     iter: funcsigs.signature(lambda obj: None),
 
+    str.__getitem__: funcsigs.signature(lambda self, index: None),
+    range: funcsigs.signature(lambda *args: None),
+
     operator.pos: funcsigs.signature(lambda a: None),
     operator.neg: funcsigs.signature(lambda a: None),
     operator.not_: funcsigs.signature(lambda a: None),

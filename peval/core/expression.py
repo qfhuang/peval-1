@@ -11,6 +11,8 @@ from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
 from peval.wisdom import get_mutation_info, get_signature
 
+from peval.core.callable import inspect_callable
+
 
 UNARY_OPS = {
     ast.UAdd: KnownValue(operator.pos),
@@ -157,6 +159,12 @@ def fmap_get_value_or_none(container):
 
 def try_call(obj, args=(), kwds={}):
     # The only entry point for function calls.
+    callable = inspect_callable(obj)
+
+    if callable.self_obj is not None:
+        args = (callable.self_obj,) + args
+    obj = callable.func_obj
+
     print("Evaluating", obj, args, kwds)
     try:
         sig = get_signature(obj)
