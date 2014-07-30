@@ -90,15 +90,10 @@ def get_signature(obj):
     if obj in KNOWN_SIGNATURES:
         return KNOWN_SIGNATURES[obj]
 
-    if type(obj) == types.FunctionType:
+    try:
         return funcsigs.signature(obj)
-    elif type(obj) == types.MethodType:
-        return funcsigs.signature(obj)
-    elif type(obj) == type:
-        if type(obj.__init__) == types.FunctionType:
-            return funcsigs.signature(obj.__init__)
-    elif hasattr(obj, '__call__') and type(obj.__call__) == types.MethodType:
-        raise ValueError
+    except:
+        pass
 
     raise ValueError("Cannot get signature from", obj)
 
