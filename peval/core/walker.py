@@ -7,8 +7,7 @@ Inspired by the ``Walker`` class from ``macropy``.
 
 import ast
 
-from peval.core.immutable import immutableadict
-from peval.core.dispatcher import Dispatcher
+from peval.tools import Dispatcher, immutableadict
 
 
 def ast_walker(handler):
@@ -25,11 +24,11 @@ def ast_walker(handler):
 
     :param node: an ``ast.AST`` object to traverse.
     :param state: a dictionary with the state which will be passed to every handler call.
-        It will be converted into a :class:`~peval.core.immutable.immutableadict` object
+        It will be converted into a :class:`~peval.tools.immutableadict` object
         at the start of the traversal.
         Handlers can update it by returning a modified version.
     :param ctx: a dictionary with the global context which will be passed to every handler call.
-        It will be converted into a :class:`~peval.core.immutable.immutableadict` object
+        It will be converted into a :class:`~peval.tools.immutableadict` object
         at the start of the traversal.
     :returns: a tuple ``(new_node, state)``, where ``state`` is the same object which was passed
         as the corresponding parameter.

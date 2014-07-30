@@ -1,9 +1,9 @@
 import ast
 import copy
 
-from peval.core.immutable import immutabledict
-from peval.core.symbol_finder import find_symbol_creations
+from peval.tools import immutabledict
 from peval.core.gensym import GenSym
+from peval.core.symbol_finder import find_symbol_creations
 from peval.core.walker import ast_walker
 
 

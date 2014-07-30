@@ -9,7 +9,7 @@ import pytest
 from peval.core.function import Function
 from peval.tags import inline
 from peval import partial_apply
-from peval.utils import unshift
+from peval.tools import unindent
 
 from tests.utils import assert_ast_equal
 
@@ -58,7 +58,7 @@ def check_partial_apply(func, args=None, kwds=None,
     function = Function.from_object(new_func)
 
     if expected_source is not None:
-        assert_ast_equal(function.tree, ast.parse(unshift(expected_source)).body[0])
+        assert_ast_equal(function.tree, ast.parse(unindent(expected_source)).body[0])
 
     if expected_new_bindings is not None:
         for k in expected_new_bindings:

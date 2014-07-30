@@ -5,8 +5,7 @@ import sys
 
 import pytest
 
-from peval.utils import unshift, replace_fields
-from peval.core.immutable import immutableset
+from peval.tools import unindent, replace_fields, immutableset
 from peval.core.walker import ast_inspector, ast_transformer, ast_walker, _Walker
 
 from tests.utils import assert_ast_equal
@@ -14,7 +13,7 @@ from tests.utils import assert_ast_equal
 
 def get_ast(function):
     if isinstance(function, str):
-        return ast.parse(unshift(function))
+        return ast.parse(unindent(function))
     else:
         return ast.parse(inspect.getsource(function))
 

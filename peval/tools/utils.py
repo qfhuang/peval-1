@@ -6,7 +6,7 @@ import six
 from six.moves import builtins
 
 
-def unshift(source):
+def unindent(source):
     ''' Shift source to the left - so that it starts with zero indentation
     '''
     source = source.rstrip("\n ").lstrip("\n")

@@ -6,7 +6,7 @@ import astunparse
 import funcsigs
 
 from peval.core.function import Function
-from peval.utils import unshift
+from peval.tools import unindent
 
 
 def function_from_source(source, globals_=None):
@@ -15,7 +15,7 @@ def function_from_source(source, globals_=None):
     with custom __future__ imports.
     """
 
-    module = ast.parse(unshift(source))
+    module = ast.parse(unindent(source))
     ast.fix_missing_locations(module)
 
     for stmt in module.body:

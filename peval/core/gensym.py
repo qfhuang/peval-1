@@ -24,7 +24,7 @@ class GenSym(object):
         taken_names = find_symbol_creations(tree) if tree is not None else None
         return cls(taken_names=taken_names)
 
-    def __call__(self, tag='peval_sym'):
+    def __call__(self, tag='sym'):
         counter = self._counters[tag]
         while True:
             name = '__peval_' + tag + '_' + str(counter)

@@ -5,7 +5,7 @@ import difflib
 
 import astunparse
 
-from peval.utils import unshift, ast_equal
+from peval.tools import unindent, ast_equal
 from peval.core.function import Function
 
 
@@ -74,7 +74,7 @@ def check_component(component, func, additional_bindings=None,
     if expected_source is None:
         expected_ast = function.tree
     else:
-        expected_ast = ast.parse(unshift(expected_source)).body[0]
+        expected_ast = ast.parse(unindent(expected_source)).body[0]
 
     assert_ast_equal(new_tree, expected_ast)
 

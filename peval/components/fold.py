@@ -5,7 +5,7 @@ import itertools
 from functools import reduce
 import copy
 
-from peval.utils import replace_fields
+from peval.tools import replace_fields
 from peval.core.gensym import GenSym
 from peval.core.cfg import build_cfg
 from peval.core.expression import peval_expression

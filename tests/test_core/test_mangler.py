@@ -1,7 +1,7 @@
 import ast
 
+from peval.tools import unindent
 from peval.core.gensym import GenSym
-from peval.utils import unshift
 from peval.core.mangler import mangle
 
 from tests.utils import assert_ast_equal
@@ -9,7 +9,7 @@ from tests.utils import assert_ast_equal
 
 def test_mutiple_returns():
 
-    source = unshift('''
+    source = unindent('''
     def f(x, y, z='foo'):
         if x:
             b = y + list(x)
@@ -19,7 +19,7 @@ def test_mutiple_returns():
     ''')
     tree = ast.parse(source)
 
-    expected_source = unshift('''
+    expected_source = unindent('''
     def f(__peval_mangled_1, __peval_mangled_2, __peval_mangled_3='foo'):
         if __peval_mangled_1:
             __peval_mangled_4 = __peval_mangled_2 + list(__peval_mangled_1)

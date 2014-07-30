@@ -7,10 +7,10 @@ from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
 if not six.PY2:
     from ast import arg
 
-from peval.utils import unshift
+from peval.tools import unindent
 from peval.core.function import Function
 
-from .utils import ast_to_source, ast_equal, assert_ast_equal
+from tests.utils import ast_to_source, ast_equal, assert_ast_equal
 
 
 def test_compare_ast():
@@ -73,7 +73,7 @@ def test_get_source():
     function = Function.from_object(sample_fn)
     source = ast_to_source(function.tree)
 
-    expected_source = unshift(
+    expected_source = unindent(
         """
         def sample_fn(x, y, foo='bar', **kw):
             if (foo == 'bar'):

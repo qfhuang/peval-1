@@ -11,8 +11,7 @@ from types import FunctionType
 import funcsigs
 import astunparse
 
-from peval.utils import unshift, get_fn_arg_id, replace_fields
-from peval.core.immutable import immutableadict
+from peval.tools import unindent, get_fn_arg_id, replace_fields, immutableadict
 from peval.core.gensym import GenSym
 from peval.core.value import value_to_node
 from peval.core.symbol_finder import find_symbol_usages
@@ -269,7 +268,7 @@ class Function(object):
             # An attribute created in ``Function.eval()``
             src = getattr(function, '_peval_source')
         else:
-            src = unshift(inspect.getsource(function))
+            src = unindent(inspect.getsource(function))
 
         tree = ast.parse(src).body[0]
 

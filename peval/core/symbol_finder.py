@@ -1,7 +1,7 @@
 import ast
 import six
 
-from peval.core.immutable import immutableset
+from peval.tools import immutableset
 from peval.core.walker import ast_inspector
 
 

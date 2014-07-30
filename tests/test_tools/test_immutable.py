@@ -1,6 +1,6 @@
 import pytest
 
-from peval.core.immutable import immutabledict, immutableadict, immutableset
+from peval.tools import immutabledict, immutableadict, immutableset
 
 
 # Immutable dictionary

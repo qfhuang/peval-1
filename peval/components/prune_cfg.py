@@ -1,7 +1,7 @@
 import ast
 import copy
 
-from peval.utils import replace_fields
+from peval.tools import replace_fields
 from peval.core.expression import try_peval_expression
 from peval.core.walker import ast_transformer
 

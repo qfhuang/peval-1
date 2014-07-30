@@ -4,13 +4,10 @@ import operator
 
 import funcsigs
 
-from peval.utils import ast_equal, replace_fields
+from peval.tools import Dispatcher, immutableadict, ast_equal, replace_fields
 from peval.core.gensym import GenSym
 from peval.core.value import KnownValue, is_known_value, kvalue_to_node
-from peval.core.immutable import immutableadict
-from peval.core.dispatcher import Dispatcher
 from peval.wisdom import get_mutation_info, get_signature
-
 from peval.core.callable import inspect_callable
 
 

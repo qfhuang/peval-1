@@ -1,8 +1,7 @@
 import ast
 import copy
 
-from peval.utils import replace_fields
-from peval.core.immutable import immutabledict, immutableset
+from peval.tools import replace_fields, immutabledict, immutableset
 from peval.core.symbol_finder import find_symbol_usages, find_symbol_creations
 from peval.core.walker import ast_transformer, ast_inspector, ast_walker
 
