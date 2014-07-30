@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from peval.decorators import pure_function, inline
+from peval.tags import inline
 from peval.components.inline import inline_functions
 
 from tests.utils import check_component

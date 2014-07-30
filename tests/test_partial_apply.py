@@ -5,5 +5,5 @@ import functools
 import pytest
 
 from peval import partial_apply
-from peval.decorators import inline
+from peval.tags import inline
 

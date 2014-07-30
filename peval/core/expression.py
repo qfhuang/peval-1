@@ -2,11 +2,16 @@ import sys
 import ast
 import operator
 
+import funcsigs
+
 from peval.utils import ast_equal, replace_fields
 from peval.core.gensym import GenSym
 from peval.core.value import KnownValue, is_known_value, kvalue_to_node
 from peval.core.immutable import immutableadict
 from peval.core.dispatcher import Dispatcher
+from peval.wisdom import get_mutation_info, get_signature
+
+from peval.core.callable import inspect_callable
 
 
 UNARY_OPS = {
@@ -154,11 +159,39 @@ def fmap_get_value_or_none(container):
 
 def try_call(obj, args=(), kwds={}):
     # The only entry point for function calls.
-    # FIXME: function and arguments must be checked against policies here.
+    callable = inspect_callable(obj)
+
+    if callable.self_obj is not None:
+        args = (callable.self_obj,) + args
+    obj = callable.func_obj
+
+    print("Evaluating", obj, args, kwds)
+    try:
+        sig = get_signature(obj)
+    except ValueError:
+        print("Failed to get signature")
+        return False, None
+
+    try:
+        ba = sig.bind(*args, **kwds)
+    except TypeError:
+        # binding failed
+        print("Failed to bind")
+        return False, None
+
+    argtypes = dict((argname, type(value)) for argname, value in ba.arguments.items())
+    pure, mutating = get_mutation_info(obj, argtypes)
+    if not pure or len(mutating) > 0:
+        print("Mutating")
+        return False, None
+
     try:
         value = obj(*args, **kwds)
     except Exception:
+        print("Failed to call")
         return False, None
+
+    print("Result:", value)
     return True, value
 
 
@@ -759,7 +792,7 @@ class _peval_expression:
     def handle_Repr(node, state, ctx):
         result, state = _peval_expression(node.value, state, ctx)
         if is_known_value(result):
-            success, value = try_call_method(result.value, '__repr__')
+            success, value = try_call(repr, args=(result.value,))
             if success:
                 return KnownValue(value=value), state
 

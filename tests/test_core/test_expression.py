@@ -5,7 +5,7 @@ import pytest
 
 from peval.core.expression import peval_expression, try_peval_expression
 from peval.core.gensym import GenSym
-from peval.decorators import pure_function
+from peval.tags import pure
 
 from tests.utils import assert_ast_equal
 
@@ -171,7 +171,7 @@ def test_and_short_circuit():
 
     global_state = dict(cnt=0)
 
-    @pure_function
+    @pure
     def inc():
         global_state['cnt'] += 1
         return True
@@ -194,7 +194,7 @@ def test_or_short_circuit():
 
     global_state = dict(cnt=0)
 
-    @pure_function
+    @pure
     def inc():
         global_state['cnt'] += 1
         return True
@@ -228,7 +228,7 @@ def test_ifexp_short_circuit():
 
     global_state = dict(cnt=0)
 
-    @pure_function
+    @pure
     def inc():
         global_state['cnt'] += 1
         return True
@@ -322,7 +322,7 @@ def test_subscript():
 
 def test_function_call():
 
-    @pure_function
+    @pure
     def fn_args(x, y):
         return x, y
 
@@ -332,7 +332,7 @@ def test_function_call():
         expected_temp_bindings=dict(__peval_temp_1=(20, 25)),
         fully_evaluated=True, expected_value=(20, 25))
 
-    @pure_function
+    @pure
     def fn_args_kwds(x, y, z=5):
         return x, y, z
 
@@ -342,7 +342,7 @@ def test_function_call():
         expected_temp_bindings=dict(__peval_temp_1=(1, 2, 11)),
         fully_evaluated=True, expected_value=(1, 2, 11))
 
-    @pure_function
+    @pure
     def fn_varargs(x, y, *args):
         return x, y, args
 
@@ -354,11 +354,11 @@ def test_function_call():
         expected_temp_bindings=dict(__peval_temp_1=(1, 2, (3, 4, 5))),
         fully_evaluated=True, expected_value=(1, 2, (3, 4, 5)))
 
-    @pure_function
+    @pure
     def fn_varkwds(*args, **kwds):
         return args, kwds
 
-    @pure_function
+    @pure
     def get_kwds(x):
         return {'a': x}
 
@@ -504,7 +504,7 @@ def test_exception():
     is left unevaluated.
     """
 
-    @pure_function
+    @pure
     def fn():
         return 1 / 0
     check_peval_expression('fn()', dict(fn=fn), 'fn()')
