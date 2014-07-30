@@ -792,7 +792,7 @@ class _peval_expression:
     def handle_Repr(node, state, ctx):
         result, state = _peval_expression(node.value, state, ctx)
         if is_known_value(result):
-            success, value = try_call_method(result.value, '__repr__')
+            success, value = try_call(repr, args=(result.value,))
             if success:
                 return KnownValue(value=value), state
 

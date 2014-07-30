@@ -50,6 +50,7 @@ KNOWN_SIGNATURES = {
 
     str.__getitem__: funcsigs.signature(lambda self, index: None),
     range: funcsigs.signature(lambda *args: None),
+    repr: funcsigs.signature(lambda *obj: None),
 
     operator.pos: funcsigs.signature(lambda a: None),
     operator.neg: funcsigs.signature(lambda a: None),
