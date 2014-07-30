@@ -1,5 +1,6 @@
 import operator
 import types
+import sys
 
 import funcsigs
 
@@ -77,6 +78,11 @@ KNOWN_SIGNATURES = {
     operator.is_: funcsigs.signature(lambda a, b: None),
     operator.is_not: funcsigs.signature(lambda a, b: None),
 }
+
+if sys.version_info < (3,):
+    KNOWN_SIGNATURES.update({
+        operator.div: funcsigs.signature(lambda a, b: None),
+    })
 
 
 def get_signature(obj):
