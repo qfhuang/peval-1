@@ -57,6 +57,10 @@ def immutable(cls):
     return cls
 
 
+def is_immutable(cls):
+    return getattr(cls, '_peval_immutable', None)
+
+
 def inline(fn):
     """
     Marks the function for inlining.

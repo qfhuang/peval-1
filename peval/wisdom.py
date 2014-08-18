@@ -4,7 +4,7 @@ import sys
 
 import funcsigs
 
-from peval.tags import is_pure, is_mutating
+from peval.tags import is_pure, is_mutating, is_immutable
 
 
 """
@@ -86,17 +86,33 @@ if sys.version_info < (3,):
     })
 
 
-def get_signature(obj):
-    if obj in KNOWN_SIGNATURES:
-        return KNOWN_SIGNATURES[obj]
+def get_signature(func_obj):
+    if func_obj in KNOWN_SIGNATURES:
+        return KNOWN_SIGNATURES[func_obj]
 
     try:
-        return funcsigs.signature(obj)
+        return funcsigs.signature(func_obj)
     except:
         pass
 
-    raise ValueError("Cannot get signature from", obj)
+    raise ValueError("Cannot get signature from", func_obj)
 
 
-def get_mutation_info(func, argtypes):
-    return True, []
+def get_mutation_info(func_obj, argtypes):
+
+    new_argtypes = dict(argtypes)
+    mutable_args = []
+    for name, argtype in argtypes.items():
+        immutable = is_immutable(argtype)
+        if immutable is None:
+            # POLICY
+            immutable = True
+        if not immutable:
+            mutable_args.append(name)
+
+    pure = is_pure(func_obj)
+    if pure is None:
+        # POLICY
+        pure = True
+
+    return pure, mutable_args
