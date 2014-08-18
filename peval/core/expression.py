@@ -162,33 +162,27 @@ def try_call(obj, args=(), kwds={}):
         args = (callable.self_obj,) + args
     obj = callable.func_obj
 
-    print("Evaluating", obj, args, kwds)
     try:
         sig = get_signature(obj)
     except ValueError:
-        print("Failed to get signature")
         return False, None
 
     try:
         ba = sig.bind(*args, **kwds)
     except TypeError:
         # binding failed
-        print("Failed to bind")
         return False, None
 
     argtypes = dict((argname, type(value)) for argname, value in ba.arguments.items())
     pure, mutating = get_mutation_info(obj, argtypes)
     if not pure or len(mutating) > 0:
-        print("Mutating")
         return False, None
 
     try:
         value = obj(*args, **kwds)
     except Exception:
-        print("Failed to call")
         return False, None
 
-    print("Result:", value)
     return True, value
 
 
