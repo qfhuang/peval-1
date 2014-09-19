@@ -1,6 +1,31 @@
+import types
 import sys
 
 from peval.core.callable import inspect_callable, Callable
+
+
+def get_method_function(unbound_method):
+    """
+    Extracts a regular function object from an unbound method.
+    """
+    if sys.version_info >= (3,):
+        return unbound_method
+    else:
+        # In Py2, `mystr2.__getitem__` is an unbound method,
+        # which is a wrapper on top of a function, checking the type of its first argument.
+        return unbound_method.__func__
+
+
+def get_builtin_method_function(unbound_builtin_method):
+    """
+    In PyPy, naturally, builtin methods are regular methods.
+    Since we can't (and/or don't want to) check for the Python implementation type,
+    we check whether it is the case instead.
+    """
+    if type(unbound_builtin_method) == types.MethodType:
+        return get_method_function(unbound_builtin_method)
+    else:
+        return unbound_builtin_method
 
 
 def test_builtin_function():
@@ -10,10 +35,12 @@ def test_builtin_constructor():
     assert inspect_callable(str) == Callable(str, init=True)
 
 def test_builtin_unbound_method():
-    assert inspect_callable(str.__getitem__) == Callable(str.__getitem__)
+    ref_func = get_builtin_method_function(str.__getitem__)
+    assert inspect_callable(str.__getitem__) == Callable(ref_func)
 
 def test_builtin_bound_method():
-    assert inspect_callable("a".__getitem__) == Callable(str.__getitem__, self_obj="a")
+    ref_func = get_builtin_method_function(str.__getitem__)
+    assert inspect_callable("a".__getitem__) == Callable(ref_func, self_obj="a")
 
 
 class mystr1(str):
@@ -25,18 +52,12 @@ class mystr2(str):
         return str.__getitem__(self, idx)
 
 
-def get_method_function(unbound_method):
-    if sys.version_info >= (3,):
-        return unbound_method
-    else:
-        # In Py2, `mystr2.__getitem__` is an unbound method,
-        # which is a wrapper on top of a function, checking the type of its first argument.
-        return unbound_method.__func__
-
-
 def test_builtin_method_in_derived():
     s1 = mystr1("a")
-    assert (inspect_callable(s1.__getitem__) == Callable(str.__getitem__, self_obj=s1))
+    ref_func = get_builtin_method_function(str.__getitem__)
+    assert (inspect_callable(s1.__getitem__) == Callable(ref_func, self_obj=s1))
+
+def test_builtin_method_overloaded_in_derived():
     s2 = mystr2("a")
     ref_func = get_method_function(mystr2.__getitem__)
     assert (inspect_callable(s2.__getitem__) == Callable(ref_func, self_obj=s2))
