@@ -8,6 +8,7 @@ core/value
 ----------
 
 * ?FEATURE: extend the class of literals, adding non-trivial immutable objects, e.g. tuples and slices.
+* ``value_to_node()`` can be called ``reify()`` (the opposite is "reflect", but I don't think I have a need for that --- the opposite operation is performed by ``peval``-prefixed functions).
 
 
 core/walker
