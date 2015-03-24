@@ -20,10 +20,8 @@ def function_from_source(source, globals_=None):
 
     for stmt in module.body:
         if type(stmt) == ast.FunctionDef:
-            # copy to protect from PyPy bug #1728
-            # (compile() will mutate it and make unparse() fail)
-            tree = copy.deepcopy(stmt)
-            name = tree.name
+            tree = stmt
+            name = stmt.name
             break
     else:
         raise ValueError("No function definitions found in the provided source")
