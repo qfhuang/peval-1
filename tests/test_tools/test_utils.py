@@ -72,6 +72,54 @@ def test_unindent_empty_line():
     assert unindent(src) == expected_src
 
 
+def test_ast_equal():
+    src = """
+        def sample_fn(x, y, foo='bar', **kw):
+            if (foo == 'bar'):
+                return (x + y)
+            else:
+                return kw['zzz']
+        """
+
+    # Different node type (`-` instead of `+`)
+    different_node = """
+        def sample_fn(x, y, foo='bar', **kw):
+            if (foo == 'bar'):
+                return (x - y)
+            else:
+                return kw['zzz']
+        """
+
+    # Different value in a node ('zzy' instead of 'zzz')
+    different_value = """
+        def sample_fn(x, y, foo='bar', **kw):
+            if (foo == 'bar'):
+                return (x + y)
+            else:
+                return kw['zzy']
+        """
+
+    # Additional element in a body
+    different_length = """
+        def sample_fn(x, y, foo='bar', **kw):
+            if (foo == 'bar'):
+                return (x + y)
+                return 1
+            else:
+                return kw['zzz']
+        """
+
+    tree = ast.parse(unindent(src))
+    different_node = ast.parse(unindent(different_node))
+    different_value = ast.parse(unindent(different_value))
+    different_length = ast.parse(unindent(different_length))
+
+    assert ast_equal(tree, tree)
+    assert not ast_equal(tree, different_node)
+    assert not ast_equal(tree, different_value)
+    assert not ast_equal(tree, different_length)
+
+
 def test_compare_ast():
     function = Function.from_object(sample_fn)
 
