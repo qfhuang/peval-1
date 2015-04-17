@@ -5,7 +5,7 @@ import ast
 
 import pytest
 
-from peval.tools import unindent, ast_equal, replace_fields
+from peval.tools import unindent, ast_equal, replace_fields, get_fn_arg_id
 from peval.core.function import Function
 
 
@@ -125,3 +125,14 @@ def test_replace_fields():
     # no new object is created if the new value is the same as the old value
     assert new_node is node
     assert new_node.id == 'x' and type(new_node.ctx) == ast.Load
+
+
+def test_get_fn_arg_id():
+    src = """
+        def f(x):
+            pass
+        """
+    tree = ast.parse(unindent(src))
+    fn_arg = tree.body[0].args.args[0]
+
+    assert get_fn_arg_id(fn_arg) == 'x'
