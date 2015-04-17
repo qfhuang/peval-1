@@ -8,6 +8,8 @@ import funcsigs
 from peval.core.function import Function
 from peval.tools import unindent
 
+from tests.utils import ast_to_source
+
 
 def function_from_source(source, globals_=None):
     """
@@ -316,3 +318,48 @@ def test_preserve_future_features():
     else:
         assert not new_func.future_features.division
         assert new_func_obj() == 0
+
+
+def test_compile_ast():
+    function = Function.from_object(sample_fn)
+    compiled_fn = function.eval()
+    assert compiled_fn(3, -9) == sample_fn(3, -9)
+    assert compiled_fn(3, -9, 'z', zzz=map) == sample_fn(3, -9, 'z', zzz=map)
+
+
+def test_get_source():
+    function = Function.from_object(sample_fn)
+    source = ast_to_source(function.tree)
+
+    expected_source = unindent(
+        """
+        def sample_fn(x, y, foo='bar', **kw):
+            if (foo == 'bar'):
+                return (x + y)
+            else:
+                return kw['zzz']
+        """)
+
+    assert source == expected_source
+
+
+def sample_fn(x, y, foo='bar', **kw):
+    if foo == 'bar':
+        return x + y
+    else:
+        return kw['zzz']
+
+
+def sample_fn2(x, y, foo='bar', **kw):
+    if foo == 'bar':
+        return x - y
+    else:
+        return kw['zzz']
+
+
+def sample_fn3(x, y, foo='bar', **kwargs):
+    if foo == 'bar':
+        return x + y
+    else:
+        return kwargs['zzz']
+
