@@ -58,15 +58,19 @@ def ast_equal(node1, node2):
     if type(node1) != type(node2):
         return False
 
-    for attr, value1 in ast.iter_fields(node1):
-        value2 = getattr(node2, attr)
-        if type(value1) == list:
-            if not all(ast_equal(elem1, elem2) for elem1, elem2 in zip(value1, value2)):
+    if type(node1) == list:
+        if len(node1) != len(node2):
+            return False
+        for elem1, elem2 in zip(node1, node2):
+            if not ast_equal(elem1, elem2):
                 return False
-        elif isinstance(value1, ast.AST):
+    elif isinstance(node1, ast.AST):
+        for attr, value1 in ast.iter_fields(node1):
+            value2 = getattr(node2, attr)
             if not ast_equal(value1, value2):
                 return False
-        elif value1 != value2:
+    else:
+        if node1 != node2:
             return False
 
     return True
