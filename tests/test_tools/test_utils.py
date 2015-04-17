@@ -2,10 +2,6 @@ import six
 import sys
 
 import ast
-from ast import Module, FunctionDef, arguments, Name, Param, If, Compare, \
-        Return, BinOp, Load, Add, Subscript, Index, Str, Eq
-if not six.PY2:
-    from ast import arg
 
 import pytest
 
