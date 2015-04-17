@@ -6,12 +6,149 @@ import sys
 import pytest
 
 from peval.tags import inline
-from peval.components.inline import inline_functions
+from peval.components.inline import inline_functions, _replace_returns
 
-from tests.utils import check_component
+from tests.utils import check_component, unindent, assert_ast_equal
 
 
-def test_simple_return():
+def _test_replace_returns(source, expected_source, expected_returns_ctr, expected_returns_in_loops):
+
+    nodes = ast.parse(unindent(source)).body
+
+    true_val = 'true_val'
+    return_var = 'return_var'
+    return_flag_var = 'return_flag'
+
+    expected_source = expected_source.format(
+        return_var=return_var, return_flag=return_flag_var, true_val='true_val')
+    expected_nodes = ast.parse(unindent(expected_source)).body
+
+    true_node = ast.Name(true_val, ast.Load())
+    new_nodes, returns_ctr, returns_in_loops = _replace_returns(
+        nodes, return_var, return_flag_var, true_node)
+
+    assert_ast_equal(new_nodes, expected_nodes)
+    assert returns_ctr == expected_returns_ctr
+    assert returns_in_loops == expected_returns_in_loops
+
+
+class TestReplaceReturns:
+
+    def test_single_return(self):
+        _test_replace_returns(
+            source="""
+                b = y + list(x)
+                return b
+                """,
+            expected_source="""
+                b = y + list(x)
+                {return_var} = b
+                break
+                """,
+            expected_returns_ctr=1,
+            expected_returns_in_loops=False)
+
+
+    def test_several_returns(self):
+        _test_replace_returns(
+            source="""
+                if a:
+                    return y + list(x)
+                elif b:
+                    return b
+                return c
+                """,
+            expected_source="""
+                if a:
+                    {return_var} = y + list(x)
+                    break
+                elif b:
+                    {return_var} = b
+                    break
+                {return_var} = c
+                break
+                """,
+            expected_returns_ctr=3,
+            expected_returns_in_loops=False)
+
+
+    def test_returns_in_loops(self):
+        _test_replace_returns(
+            source="""
+                for x in range(10):
+                    for y in range(10):
+                        if x + y > 10:
+                            return 2
+                    else:
+                        return 3
+
+                if x:
+                    return 1
+
+                while z:
+                    if z:
+                        return 3
+
+                return 0
+                """,
+            expected_source="""
+                for x in range(10):
+                    for y in range(10):
+                        if ((x + y) > 10):
+                            {return_var} = 2
+                            {return_flag} = {true_val}
+                            break
+                    else:
+                        {return_var} = 3
+                        {return_flag} = {true_val}
+                        break
+                    if {return_flag}:
+                        break
+                if {return_flag}:
+                    break
+                if x:
+                    {return_var} = 1
+                    break
+                while z:
+                    if z:
+                        {return_var} = 3
+                        {return_flag} = {true_val}
+                        break
+                if {return_flag}:
+                    break
+                {return_var} = 0
+                break
+                """,
+            expected_returns_ctr=5,
+            expected_returns_in_loops=True)
+
+
+    def test_returns_in_loop_else(self):
+        _test_replace_returns(
+            source="""
+                for y in range(10):
+                    x += y
+                else:
+                    return 1
+
+                return 0
+                """,
+            expected_source="""
+                for y in range(10):
+                    x += y
+                else:
+                    {return_var} = 1
+                    break
+
+                {return_var} = 0
+                break
+                """,
+            expected_returns_ctr=2,
+            expected_returns_in_loops=False)
+
+
+
+def _test_simple_return():
 
     @inline
     def inlined(y):
@@ -44,7 +181,7 @@ def test_simple_return():
         ''')
 
 
-def test_complex_return():
+def _test_complex_return():
 
     @inline
     def inlined(y):
@@ -90,7 +227,7 @@ def test_complex_return():
             false_const='__peval_False_1' if sys.version_info < (3, 4) else 'False'))
 
 
-def test_multiple_returns():
+def _test_multiple_returns():
 
     @inline
     def inlined(y):
