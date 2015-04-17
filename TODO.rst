@@ -15,6 +15,7 @@ core/walker
 -----------
 
 * BUG: the ``body`` field of ``Lambda`` or ``IfExp`` holds a single node, not a list --- need to take it into account when checking for returned types (but still replace it with ``Pass`` when a handler returns ``None``).
+* FEATURE: make ``visit_after`` call do nothing if we are actually in the visiting-after stage (so that one does not have to write ``if not visiting_after: visit_after()``). Or even make it return ``visiting_after`` value, similarly to how ``fork`` works.
 
 
 core/mangler
