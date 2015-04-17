@@ -134,3 +134,14 @@ Make the library make all the bookkeeping for you, creating specialized versions
 
 But in this case the arguments we specialize on must be hashable. It they
 are not, you will have to dispatch to specialized function yourself.
+
+
+(change) tools/immutable
+------------------------
+
+There are immutable data structure libraries that may be faster, e.g.:
+
+* https://github.com/zhemao/funktown
+* https://pythonhosted.org/pysistence/
+
+Alternatively, the embedded implementation can be optimized to reuse data instead of just making copies every time.
