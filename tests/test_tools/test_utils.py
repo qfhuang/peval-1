@@ -9,10 +9,8 @@ if not six.PY2:
 
 import pytest
 
-from peval.tools import unindent
+from peval.tools import unindent, ast_equal, replace_fields
 from peval.core.function import Function
-
-from tests.utils import ast_to_source, ast_equal, assert_ast_equal
 
 
 def test_unindent():
@@ -118,3 +116,16 @@ def test_ast_equal():
     assert not ast_equal(tree, different_node)
     assert not ast_equal(tree, different_value)
     assert not ast_equal(tree, different_length)
+
+
+def test_replace_fields():
+    node = ast.Name(id='x', ctx=ast.Load())
+
+    new_node = replace_fields(node, id='y')
+    assert new_node is not node
+    assert new_node.id == 'y' and type(new_node.ctx) == ast.Load
+
+    new_node = replace_fields(node, id='x')
+    # no new object is created if the new value is the same as the old value
+    assert new_node is node
+    assert new_node.id == 'x' and type(new_node.ctx) == ast.Load
