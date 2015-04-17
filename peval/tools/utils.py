@@ -7,8 +7,9 @@ from six.moves import builtins
 
 
 def unindent(source):
-    ''' Shift source to the left - so that it starts with zero indentation
-    '''
+    """
+    Shift source to the left so that it starts with zero indentation.
+    """
     source = source.rstrip("\n ").lstrip("\n")
     indent = re.match(r"([ \t])*", source).group(0)
     lines = source.split("\n")
@@ -25,6 +26,9 @@ def unindent(source):
 
 
 def get_fn_arg_id(fn_arg_node):
+    """
+    Get the identifier (symbol) for an AST node representing a function argument.
+    """
     # In Py2 the node for a function argument is a ``Name`` node.
     # In Py3 it is a special ``arg`` node.
     if six.PY2:
@@ -34,6 +38,9 @@ def get_fn_arg_id(fn_arg_node):
 
 
 def replace_fields(node, **kwds):
+    """
+    Return a node with several of its fields replaced by the given values.
+    """
     new_kwds = dict(ast.iter_fields(node))
     for key, value in kwds.items():
         if value is not new_kwds[key]:
@@ -45,6 +52,9 @@ def replace_fields(node, **kwds):
 
 
 def ast_equal(node1, node2):
+    """
+    Test two AST nodes or two lists of AST nodes for equality.
+    """
     if type(node1) != type(node2):
         return False
 
