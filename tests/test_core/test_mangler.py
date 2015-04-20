@@ -23,15 +23,13 @@ def test_mutiple_returns():
     def f(__peval_mangled_1, __peval_mangled_2, __peval_mangled_3='foo'):
         if __peval_mangled_1:
             __peval_mangled_4 = __peval_mangled_2 + list(__peval_mangled_1)
-            __peval_return_5 = __peval_mangled_4
-            break
+            return __peval_mangled_4
         else:
-            __peval_return_5 = __peval_mangled_3
-            break
+            return __peval_mangled_3
     ''')
     expected_tree = ast.parse(expected_source)
 
     gen_sym = GenSym.for_tree(tree)
-    gen_sym, new_tree = mangle(gen_sym, tree, '__peval_return_5')
+    gen_sym, new_tree = mangle(gen_sym, tree)
 
     assert_ast_equal(new_tree, expected_tree)

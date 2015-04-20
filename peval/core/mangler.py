@@ -48,26 +48,11 @@ class _mangle:
         new_state = state.update(gen_sym=gen_sym, mangled=mangled)
         return new_node, new_state
 
-    @staticmethod
-    def handle_Return(node, state, ctx, **kwds):
-        ''' Substitute return with return variable assignment + break
-        '''
-        new_value, sub_state = _mangle(node.value, state=state, ctx=ctx)
-        new_state = state.update(
-            gen_sym=sub_state.gen_sym,
-            mangled=state.mangled.update(sub_state.mangled))
-        new_nodes = [
-            ast.Assign(
-                targets=[ast.Name(id=ctx.return_name, ctx=ast.Store())],
-                value=new_value),
-            ast.Break()]
-        return new_nodes, new_state
 
-
-def mangle(gen_sym, node, return_name):
+def mangle(gen_sym, node):
     fn_locals = find_symbol_creations(node)
     new_node, state = _mangle(
         node,
         state=dict(gen_sym=gen_sym, mangled=immutabledict()),
-        ctx=dict(fn_locals=fn_locals, return_name=return_name))
+        ctx=dict(fn_locals=fn_locals))
     return state.gen_sym, new_node
