@@ -283,7 +283,7 @@ class TestWrapInLoop:
 
 
 
-def _test_component():
+def test_component():
 
     @inline
     def inlined(y):
