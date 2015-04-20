@@ -47,7 +47,7 @@ def _inline(node, gen_sym, return_name, constants):
     fn = constants[node.func.id]
     fn_ast = Function.from_object(fn).tree
 
-    gen_sym, new_fn_ast = mangle(gen_sym, fn_ast, return_name)
+    gen_sym, new_fn_ast = mangle(gen_sym, fn_ast)
 
     parameter_assignments = _build_parameter_assignments(node, new_fn_ast)
 
