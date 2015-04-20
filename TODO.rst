@@ -90,6 +90,7 @@ components/inline
 * BUG: when inlining a function, we must mangle the globals too, in case it uses a different set from what the parent function uses.
 * FEATURE: add support for inlining functions with varargs/kwargs.
   Probably just run the function through ``partial_apply`` before inlining?
+* BUG: how does marking methods as inlineable work? Need to check and probably raise an exception.
 
 
 (new) components/unroll
