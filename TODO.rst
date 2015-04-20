@@ -2,6 +2,7 @@ General
 -------
 
 * Add exports from ``core`` and ``components`` submodules to their ``__init__``'s.
+* It seems to be common to compare two AST's before and after some function to check if there were any changes. If it takes much time, we can make walkers set some flag if they made a change in the AST and then just propagate it. Drawbacks: propagating an additional value; changes can take place outside of walkers.
 
 
 core/value
@@ -145,3 +146,5 @@ There are immutable data structure libraries that may be faster, e.g.:
 * https://pythonhosted.org/pysistence/
 
 Alternatively, the embedded implementation can be optimized to reuse data instead of just making copies every time.
+
+Also, we can change ``update()`` and ``del_()`` to ``with_()`` and ``without()`` which better reflect the immutability of data structures.
