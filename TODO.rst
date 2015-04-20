@@ -90,8 +90,6 @@ components/inline
 * BUG: when inlining a function, we must mangle the globals too, in case it uses a different set from what the parent function uses.
 * FEATURE: add support for inlining functions with varargs/kwargs.
   Probably just run the function through ``partial_apply`` before inlining?
-* BUG: a function is inlined by replacing it with a ``while True`` loop and using variable assignment and ``break`` instead of ``return``.
-  But if the ``return`` is inside another loop, this will lead to unexpected behavior.
 
 
 (new) components/unroll
