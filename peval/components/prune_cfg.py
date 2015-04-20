@@ -1,15 +1,26 @@
 import ast
 import copy
 
-from peval.tools import replace_fields, ast_transformer
+from peval.tools import replace_fields, ast_transformer, ast_inspector
 from peval.core.expression import try_peval_expression
+from peval.tools import ast_equal
 
 
 def prune_cfg(node, bindings):
-    node = remove_unreachable_statements(node, ctx=dict(bindings=bindings))
-    node = simplify_loops(node, ctx=dict(bindings=bindings))
-    node = remove_unreachable_branches(node, ctx=dict(bindings=bindings))
-    return node, bindings
+
+    while True:
+
+        new_node = node
+
+        for func in (remove_unreachable_statements, simplify_loops, remove_unreachable_branches):
+            new_node = func(new_node, ctx=dict(bindings=bindings))
+
+        if ast_equal(new_node, node):
+            break
+
+        node = new_node
+
+    return new_node, bindings
 
 
 @ast_transformer
@@ -46,6 +57,34 @@ def filter_block(node_list):
         return new_list
 
 
+@ast_inspector
+class _find_jumps:
+
+    @staticmethod
+    def handle_FunctionDef(node, skip_fields, **kwds):
+        skip_fields()
+
+    @staticmethod
+    def handle_ClassDef(node, skip_fields, **kwds):
+        skip_fields()
+
+    @staticmethod
+    def handle_Break(node, state, **kwds):
+        return state.update(jumps_counter=state.jumps_counter + 1)
+
+    @staticmethod
+    def handle_Raise(node, state, **kwds):
+        return state.update(jumps_counter=state.jumps_counter + 1)
+
+    @staticmethod
+    def handle_Return(node, state, **kwds):
+        return state.update(jumps_counter=state.jumps_counter + 1)
+
+
+def find_jumps(node):
+    return _find_jumps(node, state=dict(jumps_counter=0)).jumps_counter
+
+
 @ast_transformer
 class simplify_loops:
 
@@ -53,7 +92,7 @@ class simplify_loops:
     def handle_While(node, **kwds):
         last_node = node.body[-1]
         unconditional_jump = type(last_node) in (ast.Break, ast.Raise, ast.Return)
-        if unconditional_jump:
+        if unconditional_jump and find_jumps(node.body) == 1:
             if type(last_node) == ast.Break:
                 new_body = node.body[:-1]
             else:
