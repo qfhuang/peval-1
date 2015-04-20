@@ -14,33 +14,30 @@ from peval.tools import get_fn_arg_id, ast_walker, replace_fields
 def inline_functions(tree, constants):
     gen_sym = GenSym.for_tree(tree)
     constants = dict(constants)
-    tree, state = inliner(
+    tree, state = _inline_functions_walker(
         tree, state=dict(gen_sym=gen_sym, constants=constants))
     return tree, state.constants
 
 
 @ast_walker
-def inliner(node, state, prepend, **kwds):
-    """
-    If the function in a Call node is known and inlineable, inline it.
-    """
-    if type(node) == ast.Call:
+class _inline_functions_walker:
+
+    @staticmethod
+    def handle_Call(node, state, prepend, **kwds):
         gen_sym = state.gen_sym
         constants = state.constants
 
         evaluated, fn = try_peval_expression(node.func, constants)
 
-        if evaluated and is_inline(fn):
-            return_name, gen_sym = gen_sym('return')
-            inlined_body, gen_sym, constants = _inline(node, gen_sym, return_name, constants)
-            prepend(inlined_body)
-            new_state = state.update(gen_sym=gen_sym, constants=constants)
-
-            return ast.Name(id=return_name, ctx=ast.Load()), new_state
-        else:
+        if not evaluated or not is_inline(fn):
             return node, state
-    else:
-        return node, state
+
+        return_name, gen_sym = gen_sym('return')
+        inlined_body, gen_sym, constants = _inline(node, gen_sym, return_name, constants)
+        prepend(inlined_body)
+        new_state = state.update(gen_sym=gen_sym, constants=constants)
+
+        return ast.Name(id=return_name, ctx=ast.Load()), new_state
 
 
 def _inline(node, gen_sym, return_name, constants):
@@ -49,55 +46,70 @@ def _inline(node, gen_sym, return_name, constants):
     """
     fn = constants[node.func.id]
     fn_ast = Function.from_object(fn).tree
-    constants = dict(constants)
 
     gen_sym, new_fn_ast = mangle(gen_sym, fn_ast, return_name)
 
-    parameter_assignments = _build_parameter_assignments(node, fn_ast.args)
+    parameter_assignments = _build_parameter_assignments(node, new_fn_ast)
+
+    body_nodes = new_fn_ast.body
+
+    gen_sym, inlined_body, new_bindings = _wrap_in_loop(gen_sym, body_nodes, return_name)
+    constants = dict(constants)
+    constants.update(new_bindings)
+
+    return parameter_assignments + inlined_body, gen_sym, constants
+
+
+def _wrap_in_loop(gen_sym, body_nodes, return_name):
+
+    new_bindings = dict()
 
     return_flag, gen_sym = gen_sym('return_flag')
     true_node, gen_sym, true_binding = value_to_node(True, gen_sym)
-    constants.update(true_binding)
 
-    body_nodes = new_fn_ast.body
+    # Adding an explicit return at the end of the function, if it's not present.
     if type(body_nodes[-1]) != ast.Return:
         none_node, gen_sym, none_binding = value_to_node(None, gen_sym)
-        constants.update(none_binding)
+        new_bindings.update(none_binding)
         body_nodes = body_nodes + [ast.Return(value=none_node)]
 
-    inlined_code, returns_ctr = _replace_returns(
+    inlined_code, returns_ctr, returns_in_loops = _replace_returns(
         body_nodes, return_name, return_flag, true_node)
 
-    if returns_ctr == 1 and type(inlined_code[-1]) == ast.Break:
-    # A shortcut for a common case wit a single return in the end of the function.
+    if returns_ctr == 1:
+    # A shortcut for a common case with a single return at the end of the function.
     # No loop is required.
-        inlined_body = parameter_assignments + inlined_code[:-1]
+        inlined_body = inlined_code[:-1]
     else:
     # Multiple returns - wrap in a `while` loop.
-        inlined_body = list(parameter_assignments)
 
         if returns_in_loops:
             # `return_flag` value will be used to detect returns from nested loops
             false_node, gen_sym, false_binding = value_to_node(False, gen_sym)
-            constants.update(false_binding)
+            new_bindings.update(false_binding)
 
-            inlined_body.append(
+            inlined_body = [
                 ast.Assign(
                     targets=[ast.Name(return_flag, ast.Store())],
-                    value=false_node))
+                    value=false_node)]
+        else:
+            inlined_body = []
+
 
         inlined_body.append(
             ast.While(
                 test=true_node,
-                body=inlined_code))
+                body=inlined_code,
+                orelse=[]))
+        new_bindings.update(true_binding)
 
-    return inlined_body, gen_sym, constants
+    return gen_sym, inlined_body, new_bindings
 
 
-def _build_parameter_assignments(call_node, args_node):
+def _build_parameter_assignments(call_node, functiondef_node):
     assert not call_node.starargs and not call_node.kwargs
     parameter_assignments = []
-    for callee_arg, fn_arg in zip(call_node.args, args_node.args):
+    for callee_arg, fn_arg in zip(call_node.args, functiondef_node.args.args):
         arg_id = get_fn_arg_id(fn_arg)
         parameter_assignments.append(ast.Assign(
             targets=[ast.Name(arg_id, ast.Store())],

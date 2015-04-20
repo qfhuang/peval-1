@@ -5,8 +5,10 @@ import sys
 
 import pytest
 
+from peval.core.gensym import GenSym
 from peval.tags import inline
-from peval.components.inline import inline_functions, _replace_returns
+from peval.components.inline import (
+    inline_functions, _replace_returns, _wrap_in_loop, _build_parameter_assignments)
 
 from tests.utils import check_component, unindent, assert_ast_equal
 
@@ -147,8 +149,141 @@ class TestReplaceReturns:
             expected_returns_in_loops=False)
 
 
+def _test_build_parameter_assignments(call_str, signature_str, expected_assignments):
 
-def _test_simple_return():
+    call_node = ast.parse("func(" + call_str + ")").body[0].value
+    signature_node = ast.parse("def func(" + signature_str + "):\n\tpass").body[0]
+
+    assignments = _build_parameter_assignments(call_node, signature_node)
+
+    expected_assignments = ast.parse(unindent(expected_assignments)).body
+
+    assert_ast_equal(assignments, expected_assignments)
+
+
+class TestBuildParameterAssignments:
+
+    def test_positional_args(self):
+        _test_build_parameter_assignments(
+            "a, b, 1, 3",
+            "c, d, e, f",
+            """
+            c = a
+            d = b
+            e = 1
+            f = 3
+            """)
+
+
+def _test_wrap_in_loop(body_src, expected_src, format_kwds={}, expected_bindings={}):
+    gen_sym = GenSym.for_tree()
+
+    body_nodes = ast.parse(unindent(body_src)).body
+
+    return_name = '_return_val'
+
+    gen_sym, inlined_body, new_bindings = _wrap_in_loop(gen_sym, body_nodes, return_name)
+
+    expected_body = ast.parse(unindent(expected_src.format(
+        return_val=return_name, **format_kwds))).body
+
+    assert_ast_equal(inlined_body, expected_body)
+
+    assert new_bindings == expected_bindings
+
+
+class TestWrapInLoop:
+
+    def test_no_return(self):
+        none_val = '__peval_None_1' if sys.version_info < (3, 4) else 'None'
+        _test_wrap_in_loop(
+            """
+            do_something()
+            do_something_else()
+            """,
+            """
+            do_something()
+            do_something_else()
+            {return_val} = {none_val}
+            """,
+            dict(none_val=none_val),
+            {none_val: None} if sys.version_info < (3, 4) else {}
+            )
+
+    def test_single_return(self):
+        _test_wrap_in_loop(
+            """
+            do_something()
+            do_something_else()
+            return 1
+            """,
+            """
+            do_something()
+            do_something_else()
+            {return_val} = 1
+            """
+            )
+
+    def test_several_returns(self):
+        true_val = '__peval_True_1' if sys.version_info < (3, 4) else 'True'
+        _test_wrap_in_loop(
+            """
+            if a > 4:
+                do_something()
+                return 2
+            do_something_else()
+            return 1
+            """,
+            """
+            while {true_val}:
+                if a > 4:
+                    do_something()
+                    {return_val} = 2
+                    break
+                do_something_else()
+                {return_val} = 1
+                break
+            """,
+            dict(true_val=true_val),
+            {true_val: True} if sys.version_info < (3, 4) else {}
+            )
+
+
+    def test_returns_in_loops(self):
+        true_val = '__peval_True_1' if sys.version_info < (3, 4) else 'True'
+        false_val = '__peval_False_1' if sys.version_info < (3, 4) else 'False'
+        return_flag = '__peval_return_flag_1'
+        _test_wrap_in_loop(
+            """
+            for x in range(10):
+                do_something()
+                if b:
+                    return 2
+            do_something_else()
+            return 1
+            """,
+            """
+            {return_flag} = {false_val}
+            while {true_val}:
+                for x in range(10):
+                    do_something()
+                    if b:
+                        {return_val} = 2
+                        {return_flag} = {true_val}
+                        break
+                if {return_flag}:
+                    break
+                do_something_else()
+                {return_val} = 1
+                break
+            """,
+            dict(true_val=true_val, false_val=false_val, return_flag=return_flag),
+            {true_val: True, false_val: False} if sys.version_info < (3, 4) else {}
+            )
+
+
+
+def _test_component():
 
     @inline
     def inlined(y):
@@ -180,86 +315,3 @@ def _test_simple_return():
                 return a
         ''')
 
-
-def _test_complex_return():
-
-    @inline
-    def inlined(y):
-        l = []
-        for i in iter(y):
-            l.append(i.do_stuff())
-        if l:
-            return l
-        else:
-            return None
-
-    def outer(x):
-        a = x.foo()
-        if a:
-            b = a * 10
-            a = inlined(x - 3) + b
-        return a
-
-    check_component(
-        inline_functions, outer,
-        expected_source='''
-        def outer(x):
-            a = x.foo()
-            if a:
-                b = a * 10
-                __peval_mangled_1 = x - 3
-                __peval_while_1 = {true_const}
-                while __peval_while_1:
-                    __peval_while_1 = {false_const}
-                    __peval_mangled_2 = []
-                    for __peval_mangled_3 in iter(__peval_mangled_1):
-                        __peval_mangled_2.append(__peval_mangled_3.do_stuff())
-                    if __peval_mangled_2:
-                        __peval_return_1 = __peval_mangled_2
-                        break
-                    else:
-                        __peval_return_1 = None
-                        break
-                a = __peval_return_1 + b
-            return a
-        '''.format(
-            true_const='__peval_True_1' if sys.version_info < (3, 4) else 'True',
-            false_const='__peval_False_1' if sys.version_info < (3, 4) else 'False'))
-
-
-def _test_multiple_returns():
-
-    @inline
-    def inlined(y):
-        a = y + 1
-        if a > 3:
-            return a * 2
-        else:
-            return 1
-
-    def outer(x):
-        a = x.foo()
-        a += inlined(x)
-        return a
-
-    check_component(
-        inline_functions, outer,
-        expected_source="""
-            def outer(x):
-                a = x.foo()
-                __peval_mangled_1 = x
-                __peval_while_1 = {true_const}
-                while __peval_while_1:
-                    __peval_while_1 = {false_const}
-                    __peval_mangled_2 = (__peval_mangled_1 + 1)
-                    if (__peval_mangled_2 > 3):
-                        __peval_return_1 = (__peval_mangled_2 * 2)
-                        break
-                    else:
-                        __peval_return_1 = 1
-                        break
-                a += __peval_return_1
-                return a
-        """.format(
-            true_const='__peval_True_1' if sys.version_info < (3, 4) else 'True',
-            false_const='__peval_False_1' if sys.version_info < (3, 4) else 'False'))
