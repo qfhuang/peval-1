@@ -225,4 +225,4 @@ class immutableset(set):
 
 
     def __repr__(self):
-        return "immutableset({" + ", ".join(repr(elem) for elem in self) + "})"
+        return set.__repr__(self)
